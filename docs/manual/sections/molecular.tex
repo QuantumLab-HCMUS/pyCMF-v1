@@ -1,0 +1,494 @@
+\chapter{Molecular Calculations}
+\label{ch:molecular}
+
+All molecular methods follow the same pattern: build the object from a
+converged mean-field object of \pyscf{}, set attributes, call
+\code{kernel()} or \code{run()}, and read the results from attributes.
+
+\section{Choosing the method}
+
+\begin{table}[!htb]
+\centering
+\small
+\caption{Factory functions for molecules.}
+\label{tab:factories}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+Call & Reference and class & Result \\
+\midrule
+\code{pycmf.OBMP2(mf)} & RHF or RKS $\to$ \code{ROBMP2}; UHF or ROHF $\to$ \code{UOBMP2} & OBMP2 \\
+\code{pycmf.O2BMP2(mf, c_os=1.2)} & as above; \code{c_os} is mandatory & O2BMP2 \\
+\code{pycmf.OBDH(mf, xc='B2PLYP')} & as above $\to$ \code{ROBDH} or \code{UOBDH} & one-body double hybrid \\
+\code{pycmf.O2BDH(mf, c_os=1.2)} & as above; \code{c_os} is mandatory & opposite-spin OBDH \\
+\code{pycmf.OBDF(mp, ncas, nelecas)} & converged OBMP2 or O2BMP2 object & active-space Hamiltonian \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The factory functions choose the restricted or unrestricted class from the
+type of the mean-field object. A ROHF reference is converted to UHF form.
+Keyword arguments of the factory functions are set as attributes, so
+\begin{lstlisting}[style=python]
+mp = pycmf.OBMP2(mf, conv_tol=1e-10, level_shift=0.1)
+\end{lstlisting}
+is the same as setting \code{mp.conv_tol} and \code{mp.level_shift} after
+construction. The classes \code{ROBMP2}, \code{UOBMP2}, \code{ROBDH} and
+\code{UOBDH} can also be instantiated directly.
+
+\section{OBMP2 and O2BMP2}
+\label{sec:obmp2}
+
+\subsection{A first calculation}
+
+\begin{lstlisting}[style=python]
+from pyscf import gto, scf, mp
+import pycmf
+
+mol = gto.M(atom='O 0 0 0.1173; H 0 0.7572 -0.4692; H 0 -0.7572 -0.4692',
+            basis='cc-pvdz')
+mf = scf.RHF(mol).run()
+ob = pycmf.OBMP2(mf).run()
+print(ob.e_tot, ob.converged)
+print(mp.MP2(mf).run().e_tot)          # conventional MP2 for comparison
+print(ob.ip_koopmans() * 27.2114)       # Koopmans IP in eV
+\end{lstlisting}
+
+For water in the cc-pVDZ basis this gives (from
+\code{examples/01-obmp2.py}):
+
+\begin{lstlisting}[style=output]
+E(RHF)    = -76.0267720534
+E(MP2)    = -76.2307756326
+E(OBMP2)  = -76.2312896416   converged: True
+Koopmans IP (eV) = 14.953
+\end{lstlisting}
+
+\subsection{Attributes}
+
+\begin{longtable}{@{}p{0.27\textwidth} p{0.16\textwidth} p{0.49\textwidth}@{}}
+\caption{Attributes of the molecular OBMP2 classes.}\label{tab:attrs}\\
+\toprule
+Attribute & Default & Meaning \\
+\midrule
+\endfirsthead
+\toprule
+Attribute & Default & Meaning \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\code{conv_tol} & \code{1e-8} & convergence threshold of the energy change between cycles \\
+\code{conv_tol_grad} & $\sqrt{\text{\code{conv_tol}}}$ & threshold on the norm of the occupied--virtual block $\bar f_{ia}$ \\
+\code{max_cycle} & \code{100} & maximum number of cycles; \code{max_cycle=1} from HF orbitals gives conventional MP2 \\
+\code{bch_order} & \code{2} & 2: second-order BCH; 1: half-weighted first commutator \\
+\code{c_os}, \code{c_ss} & \code{1, 1} & scaling of the opposite-spin and same-spin amplitudes \\
+\code{level_shift} & \code{0} & constant added to the energy gap in the amplitude denominators \\
+\code{occupation} & \code{'aufbau'} & \code{'mom'} or \code{'imom'} for state-specific calculations \\
+\code{diis} & \code{True} & DIIS extrapolation of the correlated Fock matrix \\
+\code{diis_space} & \code{8} & number of stored DIIS vectors \\
+\code{diis_start_cycle} & \code{1} & first cycle with DIIS \\
+\code{with_df} & from \code{mf} & density-fitting object; \code{None} means exact integrals \\
+\code{max_memory} & from \code{mf} & memory limit in MB \\
+\code{verbose}, \code{stdout} & from \code{mol} & output level and stream (\pyscf{} logger) \\
+\end{longtable}
+
+\code{frozen} orbitals are not supported for molecules: all orbitals are
+relaxed by the correlated Fock operator, and a value other than \code{None}
+or \code{0} raises \code{NotImplementedError}.
+
+\subsection{Results}
+
+After \code{kernel()} the following attributes are set.
+
+\begin{description}[style=nextline,leftmargin=3.2cm,labelwidth=3cm]
+  \item[\code{converged}] \code{True} if both convergence criteria were met.
+  \item[\code{e_tot}] total energy; also the return value of \code{kernel()}.
+  \item[\code{e_corr}] \code{e_tot} minus the energy of the input mean field.
+  \item[\code{e_ref}] HF (or, for OBDH, Kohn--Sham) energy of the final determinant.
+  \item[\code{e_hf}] energy of the input mean field.
+  \item[\code{mo_energy}] eigenvalues of the correlated Fock matrix.
+  \item[\code{mo_coeff}] correlated orbitals, occupied orbitals first.
+  \item[\code{mo_occ}] occupation numbers in the same order.
+\end{description}
+
+For an unrestricted reference these arrays have a leading spin index of
+length two, as in \pyscf{}.
+
+\subsection{Methods of the result object}
+
+\begin{longtable}{@{}p{0.40\textwidth} p{0.54\textwidth}@{}}
+\toprule
+Method & Returns \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\code{get_fock(ao_repr=False)} & converged correlated Fock matrix (MO or AO basis) \\
+\code{get_vcorr()} & correlation potential $v$ in the basis of the converged orbitals \\
+\code{make_rdm1(ao_repr=True, correlated=False)} & one-particle density; \code{correlated=True} gives the MP2-like density \\
+\code{dip_moment(correlated=False, unit='Debye')} & dipole moment over either density \\
+\code{ip_koopmans()}, \code{ea_koopmans()} & $-\varepsilon_{\mathrm{HOMO}}$ and $-\varepsilon_{\mathrm{LUMO}}$ of $\fbar$ (per spin for unrestricted) \\
+\code{spin_square(correlated=False)} & $\langle S^2\rangle$ and $2S+1$ (unrestricted only; \code{ROBMP2} returns \code{(0, 1)}) \\
+\code{hfcc(atoms=None, correlated=False)} & isotropic hyperfine couplings in MHz (unrestricted only) \\
+\code{get_intermediates(with_amplitudes=False)} & quantities of the last cycle (\code{Intermediates}); amplitudes are rebuilt on request \\
+\code{density_fit(auxbasis=None, with_df=None)} & switches the correlation part to density fitting (returns \code{self}) \\
+\end{longtable}
+
+\subsection{O2BMP2 and spin-component scaling}
+
+\begin{lstlisting}[style=python]
+o2 = pycmf.O2BMP2(mf, c_os=1.2).run()            # c_ss = 0
+scs = pycmf.OBMP2(mf, c_os=1.2, c_ss=1/3).run()  # any other scaling
+\end{lstlisting}
+
+\code{O2BMP2} raises \code{ValueError} if \code{c_os} is not given. With
+density fitting an O2BMP2 cycle costs about 60--70\,\% of an OBMP2 cycle
+because the same-spin blocks are skipped. The example
+\code{examples/02-o2bmp2.py} shows the effect of \code{c_os} on the
+singlet--triplet gap of CH$_2$ (cc-pVTZ, density fitting):
+
+\begin{lstlisting}[style=output]
+method             E(S)-E(T) kcal/mol
+HF                      28.24
+OBMP2                   16.16
+O2BMP2 c_os=1.1         12.09
+O2BMP2 c_os=1.2         12.35
+O2BMP2 c_os=1.3         12.90
+\end{lstlisting}
+
+\subsection{Open shells}
+
+An unrestricted reference gives unrestricted OBMP2. OBMP2 reduces the spin
+contamination of UHF considerably. For the CN radical in the cc-pVDZ basis
+(\code{examples/06-properties.py}), $\langle S^2\rangle$ drops from 1.150
+(UHF) to 0.766 (OBMP2 determinant) and 0.761 with the amplitude correction.
+
+\begin{lstlisting}[style=python]
+mol = gto.M(atom='O 0 0 0; H 0 0 0.97', basis='cc-pvdz', spin=1)
+mf = scf.UHF(mol).run()
+ob = pycmf.OBMP2(mf).run()
+print(ob.e_tot, ob.spin_square())
+\end{lstlisting}
+
+\section{Density fitting}
+\label{sec:df}
+
+There are two ways to use density-fitted integrals.
+
+\begin{enumerate}
+  \item The mean field uses density fitting:
+        \code{mf = scf.RHF(mol).density_fit()}. \pycmf{} reuses
+        \code{mf.with_df} (JK-fit basis) for the correlation part, as the
+        DF-MP2 of \pyscf{} does.
+  \item The mean field uses exact integrals:
+        \code{pycmf.OBMP2(mf).density_fit()} fits only the correlation part,
+        with an RI-C auxiliary basis chosen by \pyscf{};
+        \code{density_fit(auxbasis='cc-pvtz-ri')} selects a specific one.
+\end{enumerate}
+
+\begin{lstlisting}[style=python]
+mf_df = scf.RHF(mol).density_fit().run()
+e1 = pycmf.OBMP2(mf_df).kernel()                              # JK-fit basis
+e2 = pycmf.OBMP2(mf).density_fit(auxbasis='cc-pvdz-ri').kernel()   # RI-C basis
+\end{lstlisting}
+
+For water/cc-pVDZ the two give $-76.2312271301$ and $-76.2312761456$~Hartree,
+against $-76.2312896416$ with exact integrals. Exact integrals need the AO
+integrals in memory; for more than a few hundred basis functions use density
+fitting.
+
+\section{Convergence}
+\label{sec:convergence}
+
+Every method uses the same self-consistent driver
+(\code{pycmf.core.scf_loop}). At each cycle it
+
+\begin{enumerate}
+  \item builds the correlated Fock matrix from the current orbitals and
+        orbital energies;
+  \item extrapolates it with DIIS, using the commutator $[F,D]$ per spin
+        channel as error vector;
+  \item diagonalises it in the space spanned by the current orbitals;
+  \item occupies the new orbitals according to \code{occupation}.
+\end{enumerate}
+
+Convergence requires both $|\Delta E| <$ \code{conv_tol} and
+$\|\bar f_{ia}\| <$ \code{conv_tol_grad}. At \code{verbose >= 4} the
+settings are printed first, then the energy, $\Delta E$ and
+$\|\bar f_{ia}\|$ of every cycle. For water/cc-pVDZ with the default settings:
+
+\begin{lstlisting}[style=output]
+******** <class 'pycmf.mol.obmp2.ROBMP2'> ********
+bch_order = 2
+c_os = 1  c_ss = 1
+level_shift = 0
+occupation = aufbau
+conv_tol = 1e-08
+max_cycle = 100
+DIIS = True, space = 8
+integrals = exact
+cycle= 1 E= -76.2307756295253  delta_E= -76.2  |f_ov|= 0.0302
+cycle= 2 E= -76.231238968644  delta_E= -0.000463  |f_ov|= 0.00485
+cycle= 3 E= -76.2312803148426  delta_E= -4.13e-05  |f_ov|= 0.00109
+cycle= 4 E= -76.2312879484375  delta_E= -7.63e-06  |f_ov|= 0.000263
+cycle= 5 E= -76.2312891373978  delta_E= -1.19e-06  |f_ov|= 9.69e-05
+cycle= 6 E= -76.231289619696  delta_E= -4.82e-07  |f_ov|= 1.47e-05
+cycle= 7 E= -76.2312896408706  delta_E= -2.12e-08  |f_ov|= 1.6e-06
+cycle= 8 E= -76.2312896416401  delta_E= -7.69e-10  |f_ov|= 1.93e-07
+ROBMP2 converged.  E(ROBMP2) = -76.2312896416401
+\end{lstlisting}
+
+The first cycle reproduces the MP2 energy ($-76.23077563$) to the accuracy
+of the HF reference.
+
+If a calculation does not converge:
+
+\begin{itemize}
+  \item increase \code{max_cycle};
+  \item try a small \code{level_shift} (for example 0.1--0.3~Hartree), which
+        damps the amplitudes of near-degenerate pairs;
+  \item start DIIS later (\code{diis_start_cycle}) or switch it off to see
+        whether the iterations oscillate;
+  \item check that the mean field is a stable solution
+        (\code{mf.stability()} in \pyscf{}).
+\end{itemize}
+
+A calculation that stops at \code{max_cycle} prints a warning and sets
+\code{converged=False}; its energy is that of the last cycle.
+
+\section{One-body double hybrids}
+\label{sec:obdh}
+
+\code{OBDH} and \code{O2BDH} take a converged HF or Kohn--Sham object, which
+provides the starting orbitals. The functional is defined in one of three
+ways:
+
+\begin{lstlisting}[style=python]
+pycmf.OBDH(mf)                                           # B2PLYP
+pycmf.OBDH(mf, xc='B2GP-PLYP')                           # by name
+pycmf.OBDH(mf, ax=0.6, ac=0.3, xc_x='PBE', xc_c='PBE')   # four parameters
+pycmf.OBDH(mf, xc='0.5*HF + 0.5*B88, 0.75*LYP', ac=0.25) # PySCF string + a_c
+pycmf.O2BDH(mf, c_os=1.2, xc='PBE0-DH')
+\end{lstlisting}
+
+Names are case-insensitive, and hyphens and underscores are ignored. With a
+functional string the semilocal correlation must already be scaled by
+$1-a_c$, and \code{ax} must not be given (the HF fraction is part of the
+string). Explicit \code{ax} and \code{ac} override the parameters of a named
+functional.
+
+\begin{longtable}{@{}p{0.22\textwidth} p{0.18\textwidth} p{0.52\textwidth}@{}}
+\caption{Additional attributes of \code{ROBDH} and \code{UOBDH}.}\\
+\toprule
+Attribute & Default & Meaning \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\code{ax} & \code{0.53} & fraction of HF exchange \\
+\code{ac} & \code{0.27} & weight of the OBMP2 correlation \\
+\code{xc_x}, \code{xc_c} & \code{'B88'}, \code{'LYP'} & semilocal exchange and correlation \\
+\code{xc} & \code{None} & name of a double hybrid or a \pyscf{} functional string \\
+\code{grids_level} & \code{None} & DFT integration grid level (default of \pyscf{}) \\
+\end{longtable}
+
+Useful methods: \code{get_xc()} returns the functional string of the
+Kohn--Sham part, \code{set_functional(name)} takes the four parameters from a
+named double hybrid, and \code{get_ks()} returns the Kohn--Sham object that
+evaluates the hybrid part. When the reference uses density fitting, the
+Kohn--Sham part uses the same density-fitting object.
+
+From \code{examples/05-obdh.py} (water, cc-pVDZ, density fitting):
+
+\begin{lstlisting}[style=output]
+functional          : 0.53*HF + 0.47*B88, 0.73*LYP  + 0.27 E_c(OBMP2)
+E(OBDH)             = -76.3425040639   converged: True
+E(O2BDH, c_os=1.2)  = -76.3231558818
+B2GP-PLYP  a_x = 0.6500  a_c = 0.3600  E = -76.3273800422
+PBE0-DH    a_x = 0.5000  a_c = 0.1250  E = -76.3282840566
+PBE-QIDH   a_x = 0.6934  a_c = 0.3333  E = -76.3072423903
+\end{lstlisting}
+
+For degenerate open shells such as the $^2\Pi$ state of OH, the orientation
+of the open-shell orbital is fixed only by the numerical noise of the DFT
+grid. Convergence then stalls at $\|\bar f_{ia}\|\sim10^{-6}$ and total
+energies are reproducible to about $10^{-7}$~Hartree only.
+
+\section{State-specific excited states}
+\label{sec:mom}
+
+An excited state is computed from a non-Aufbau determinant. First converge
+the excited determinant at the HF level with the MOM of \pyscf{}, then run
+OBMP2 or O2BMP2 with \code{occupation='imom'}:
+
+\begin{lstlisting}[style=python]
+mol = gto.M(atom='O 0 0 0.1173; H 0 0.7572 -0.4692; H 0 -0.7572 -0.4692',
+            basis='aug-cc-pvdz')
+mf_gs = scf.UHF(mol).run()
+
+occ = mf_gs.mo_occ.copy()                   # alpha HOMO -> LUMO
+homo = mol.nelec[0] - 1
+occ[0][homo], occ[0][homo + 1] = 0, 1
+mf_ex = scf.addons.mom_occ(scf.UHF(mol), mf_gs.mo_coeff, occ)
+mf_ex.kernel(mf_ex.make_rdm1(mf_gs.mo_coeff, occ))
+
+gs = pycmf.O2BMP2(mf_gs, c_os=1.2).run()
+ex = pycmf.O2BMP2(mf_ex, c_os=1.2, occupation='imom').run()
+omega = (ex.e_tot - gs.e_tot) * 27.2114     # eV
+\end{lstlisting}
+
+The occupation numbers \code{mo_occ} of the mean-field object define the
+starting determinant; the orbitals are reordered occupied-first internally.
+At \code{verbose >= 5} the number of electrons that have left the reference
+occupied space is printed every cycle, which reveals a collapse to another
+state. \code{'imom'} keeps the reference fixed and is usually more robust
+than \code{'mom'}. For the example above (\code{examples/03-excited_state.py}):
+
+\begin{lstlisting}[style=output]
+method             omega (eV)    <S^2>
+MOM-HF                  6.209    1.008
+OBMP2                   7.588    1.006   converged: True
+O2BMP2 (1.2)            7.193    1.006   converged: True
+\end{lstlisting}
+
+The excited determinant is a 50:50 mixture of singlet and triplet. Spin
+purification is left to the user.
+
+\section{One-body downfolding}
+\label{sec:obdf}
+
+\code{OBDF} builds the active-space Hamiltonian of
+Section~\ref{sec:theory-obdf} from a converged OBMP2 or O2BMP2 object (OBDH
+objects are not accepted).
+
+\begin{lstlisting}[style=python]
+mp = pycmf.OBMP2(mf).run()
+ham = pycmf.OBDF(mp, ncas=6, nelecas=6)        # orbitals around the Fermi level
+ham = pycmf.OBDF(mp, 4, (1, 1), cas_list=[0, 1, 4, 5])   # 0-based indices
+e = ham.kernel()                  # FCI in the active space
+h1, e_core = ham.get_h1eff()      # dressed one-body integrals and constant
+h2 = ham.get_h2eff()              # bare active-space integrals
+ham.to_fcidump('active.fcidump')  # restricted reference only
+\end{lstlisting}
+
+\begin{description}[style=nextline,leftmargin=3.2cm,labelwidth=3cm]
+  \item[\code{ncas}] number of active orbitals.
+  \item[\code{nelecas}] number of active electrons, an integer or a pair
+        $(n_\alpha, n_\beta)$.
+  \item[\code{cas_list}] 0-based indices of the active orbitals in the orbital
+        order of \code{mp}; a pair of lists for different $\alpha$ and
+        $\beta$ choices. By default the \code{ncas} orbitals around the Fermi
+        level that hold \code{nelecas} electrons are used.
+  \item[\code{fcisolver}] solver with the interface of \code{pyscf.fci};
+        it can be replaced by any compatible solver (DMRG, selected CI).
+  \item[\code{nroots}] number of states requested from the solver.
+\end{description}
+
+Results: \code{e_core}, \code{h1eff}, \code{h2eff}, and after
+\code{kernel()} the total energy \code{e_tot}, the active-space energy
+\code{e_cas} and the CI vector(s) \code{ci}. For an unrestricted reference
+\code{h1eff} is a pair and \code{h2eff} a triple ($\alpha\alpha$,
+$\alpha\beta$, $\beta\beta$), and \code{to_fcidump} is not available.
+
+Do not cut through a set of degenerate orbitals with \code{cas_list}: the
+result then depends on an arbitrary rotation. \code{OBDF} warns in this
+situation.
+
+\code{examples/04-obdf.py} compares OBDF(6,6) with OBMP2, CASCI(6,6) and
+CCSD(T) along the dissociation curve of N$_2$ (cc-pVDZ):
+
+\begin{lstlisting}[style=output]
+ R (A)          OBMP2     CASCI(6,6)      OBDF(6,6)        CCSD(T)
+  1.00    -109.215012    -108.980201    -109.220021    -109.231138
+  1.10    -109.267377    -109.021905    -109.272409    -109.279398
+  1.30    -109.229093    -108.963955    -109.225534    -109.224738
+  1.60    -109.122703    -108.828238    -109.073809    -109.076363
+  2.00    -109.053390    -108.741134    -108.924800    -109.015388
+\end{lstlisting}
+
+\section{Properties}
+\label{sec:properties}
+
+\begin{lstlisting}[style=python]
+mp.make_rdm1(ao_repr=True, correlated=False)  # HF-like; True: MP2-like
+mp.dip_moment(correlated=True)
+mp.spin_square(correlated=False)              # unrestricted only
+mp.hfcc(atoms=None, correlated=False)         # isotropic couplings, MHz
+mp.ip_koopmans(); mp.ea_koopmans()
+mp.get_fock(); mp.get_vcorr()                 # MO basis
+\end{lstlisting}
+
+The functions behind these methods are in \code{pycmf.properties}
+(\code{rdm}, \code{spin}, \code{hfcc}). From
+\code{examples/06-properties.py} (CN, cc-pVDZ):
+
+\begin{lstlisting}[style=output]
+<S^2>: UHF 1.1497 | OBMP2 determinant 0.7657 | with amplitudes 0.7609
+HF-like  density: dipole 1.2327 D   A_iso(13C)   547.33 MHz   A_iso(14N)   -18.43 MHz
+MP2-like density: dipole 1.0926 D   A_iso(13C)   560.71 MHz   A_iso(14N)   -10.45 MHz
+\end{lstlisting}
+
+\section{Experimental: restricted open-shell OBMP2}
+\label{sec:roobmp2}
+
+\code{ROOBMP2} works with a high-spin ROHF reference and keeps common spatial
+orbitals, ordered closed, open, virtual. It has no formal derivation yet, no
+DIIS and no state following.
+
+\begin{lstlisting}[style=python]
+from pycmf.mol.roobmp2 import ROOBMP2
+mf = scf.ROHF(mol).run()
+ro = ROOBMP2(mf).run()
+print(ro.e_tot, ro.spin_square())      # <S^2> = 0.75 for a doublet
+\end{lstlisting}
+
+The additional attribute \code{conv_tol_denom} (default $10^{-6}$) is the
+threshold on the difference between the amplitude denominators and the
+diagonals of the spin Fock matrices. \code{mo_energy} carries the spin
+energies as the tags \code{mo_ea} and \code{mo_eb}.
+
+\section{Experimental: embedding in DFT}
+\label{sec:embedding}
+
+\begin{lstlisting}[style=python]
+from pyscf import dft
+from pycmf.embed import EmbeddedOBDH, EmbeddedOBMP2
+
+ks = dft.UKS(mol, xc='pbe').density_fit().run()   # low level, full system
+emb = EmbeddedOBDH(ks, active_atoms=[0, 1, 2], xc='B2PLYP',
+                   use_cl=True, n_shells=1)
+e = emb.kernel()
+emb.e_env, emb.e_sub, emb.nelec_sub
+emb.make_rdm1(); emb.dip_moment()                 # full system
+EmbeddedOBMP2(ks, active_atoms=[0, 1, 2]).kernel()
+\end{lstlisting}
+
+\begin{longtable}{@{}p{0.22\textwidth} p{0.18\textwidth} p{0.52\textwidth}@{}}
+\caption{Attributes of \code{EmbeddedOBMP2} and \code{EmbeddedOBDH}.}\\
+\toprule
+Attribute & Default & Meaning \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\code{active_atoms} & \code{None} & indices of the atoms of the subsystem \\
+\code{xc_env} & from \code{mf} & low-level functional (environment and embedding potential); \code{'pbe'} for an HF object \\
+\code{mu} & \code{1e6} & level-shift parameter of the projector \\
+\code{use_cl} & \code{False} & truncate the virtual space by concentric localization \\
+\code{n_shells} & \code{1} & number of CL shells kept \\
+\end{longtable}
+
+Results: \code{e_tot} (embedded total energy), \code{e_env} (low-level
+energy of the full system), \code{e_sub} (high-level energy of the
+subsystem), \code{e_low_sub}, \code{nelec_sub}, and the orbitals of the
+embedded subsystem. \code{make_rdm1(with_env=True)} returns the density of
+the full system. The embedding is formulated for unrestricted references
+only. The helper functions \code{spade_partition}, \code{atom_aos},
+\code{concentric_localization} and \code{shell_sizes} are exported by
+\code{pycmf.embed}.
+
+In version 1.0 the two levels have separate functionals: the environment and
+the embedding potential use \code{xc_env}, and the subsystem uses its own
+double hybrid. In version 0.2 \code{xc_env} was also used for the
+Kohn--Sham part of the subsystem; those numbers are reproduced with
+\code{xc=xc_env}.

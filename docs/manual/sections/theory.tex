@@ -1,0 +1,305 @@
+\chapter{Theory}
+\label{ch:theory}
+
+This chapter summarises what \pycmf{} computes, in the notation of the code.
+The derivations are given in the papers listed in
+Appendix~\ref{ch:references}.
+
+\section{OBMP2}
+\label{sec:theory-obmp2}
+
+\subsection{Correlated Fock operator}
+
+The electronic Hamiltonian $\hat H$ is transformed with an anti-Hermitian
+doubles operator $\hat A$ built from first-order amplitudes. The
+Baker--Campbell--Hausdorff (BCH) expansion is truncated at second order, with
+the Fock operator $\hat F$ in the double commutator, and every commutator is
+reduced to one-body operators and constants by a cumulant approximation,
+denoted $[\ldots]_1$:
+\begin{equation}
+  \hat H_{\mathrm{OBMP2}} = \hat H_{\mathrm{HF}} + \big[\hat H,\hat A\big]_1
+  + \tfrac12\big[[\hat F,\hat A],\hat A\big]_1
+  = \hat{\bar F} + \bar C ,
+  \qquad \bar f_{pq} = f_{pq} + v_{pq}.
+  \label{eq:hobmp2}
+\end{equation}
+Here $f$ is the Hartree--Fock (HF) Fock matrix, $v$ is the
+\emph{correlation potential} and $\fbar$ the \emph{correlated Fock matrix}.
+The orbitals are the eigenvectors of $\fbar$ and the orbital energies
+$\varepsilon_p$ its eigenvalues.
+
+\subsection{Amplitudes and self-consistency}
+
+The amplitudes are rebuilt from the current orbitals and orbital energies,
+\begin{equation}
+  t^{ab}_{ij} = c\,
+  \frac{(ia|jb)}{\varepsilon_i+\varepsilon_j-\varepsilon_a-\varepsilon_b-\Delta},
+  \label{eq:amplitudes}
+\end{equation}
+where $c$ is a scaling factor ($c=1$ in OBMP2) and $\Delta$ an optional level
+shift (attribute \code{level_shift}). The cycle
+\[
+  \text{orbitals} \;\to\; t \;\to\; v \;\to\; \fbar \;\to\; \text{new orbitals}
+\]
+is repeated until the energy is stable and the Brillouin-type condition
+$\bar f_{ia}=0$ holds. Starting from HF orbitals, the energy of the first
+cycle is the conventional MP2 energy.
+
+\subsection{Energy}
+
+The energy of a cycle is
+\begin{equation}
+  E = E_{\mathrm{HF}}[\Phi] + c_0 + \sum_{i}^{\mathrm{occ}} v_{ii},
+  \label{eq:energy}
+\end{equation}
+where $E_{\mathrm{HF}}[\Phi]$ is the HF energy of the current determinant and
+$c_0$ the constant of the correlation potential. Because the amplitudes
+depend on the orbital energies, this functional is not stationary with respect
+to orbital rotations: the converged orbitals are defined by the eigenvalue
+problem, not by a variational principle. The error of the energy is therefore
+of first order in the residual $\bar f_{ia}$, and a tight convergence
+threshold on $\bar f_{ia}$ (attribute \code{conv_tol_grad}) is needed when
+energy differences below $10^{-6}$~Hartree matter.
+
+\subsection{Spin blocks}
+
+Amplitudes are stored in chemists' order, \code{t[i,a,j,b]}, as a list of
+spin blocks $(x,y)$: the pair $(i,a)$ has spin $x$ and the pair $(j,b)$ has
+spin $y$. The antisymmetrised amplitude is $\bar t = t - t^{\mathrm{exch}}$
+for same-spin blocks and $\bar t = t$ for opposite-spin blocks. An
+unrestricted reference has the four blocks $\alpha\alpha$, $\beta\beta$,
+$\alpha\beta$ and $\beta\alpha$. A restricted reference has one spin channel
+and two blocks (same spin, opposite spin); the spin-flipped partners
+contribute a factor of two to the constants. The same routines
+(\code{pycmf.mol.bch}) therefore serve both cases.
+
+\subsection{Working equations}
+
+With $f$ the HF Fock matrix in the current orbital basis and summation over
+repeated indices, each block $(x,y)$ adds to the unsymmetrised matrices
+$c_1^{x}$, $c_1^{y}$ and to the constant $c_0$.
+
+\paragraph{First order, $[\hat H,\hat A]_1$.}
+\begin{align}
+  c_1^{y}[p,k] &\mathrel{+}= 2\,(ia|pl)\,\bar t_{ia,kl}, &
+  c_1^{y}[p,l] &\mathrel{-}= 2\,(ia|kp)\,\bar t_{ia,kl}, \\
+  c_1^{y}[j,b] &\mathrel{+}= 2\,f^{x}_{ia}\,\bar t_{ia,jb}, &
+  c_0 &\mathrel{-}= (ia|jb)\,\bar t_{ia,jb}.
+\end{align}
+
+\paragraph{Second order, $\tfrac12[[\hat F,\hat A],\hat A]_1$.}
+With the intermediates $V_{ia,jd} = f^{x}_{ac}\,\bar t_{ic,jd}$ and
+$O_{ia,jd} = f^{x}_{ik}\,\bar t_{ka,jd}$,
+\begin{align}
+  c_1^{y}[j,k] &\mathrel{+}= t_{ia,jb}\,(V-O)_{ia,kb}, &
+  c_1^{x}[i,k] &\mathrel{+}= t_{ia,jb}\,V_{ka,jb}, \\
+  c_1^{x}[a,c] &\mathrel{+}= t_{ia,jb}\,O_{ic,jb}, &
+  c_1^{y}[b,d] &\mathrel{+}= t_{ia,jb}\,(O-V)_{ia,jd}, \\
+  c_0 &\mathrel{+}= t_{ia,jb}\,(O-V)_{ia,jb}, &
+  c_1^{x}[i,a] &\mathrel{+}= \bar t_{ia,jb}\,y^{y}_{jb},
+\end{align}
+with $y^{y}_{jb}=\sum_{x'} f^{x'}_{kc}\,\bar t^{\,x'y}_{kc,jb}$, and, with
+$R^{\mathrm{occ}}_{ik} = t_{ia,jb}\bar t_{ka,jb}$ and
+$R^{\mathrm{vir}}_{ac} = t_{ia,jb}\bar t_{ic,jb}$ accumulated over the blocks
+with first spin $x$,
+\begin{equation}
+  c_1^{x}[p,i] \mathrel{-}= f^{x}_{pk}R^{\mathrm{occ}}_{ik},\qquad
+  c_1^{x}[p,c] \mathrel{-}= f^{x}_{pa}R^{\mathrm{vir}}_{ac}.
+\end{equation}
+Finally $v = \tfrac12\,(c_1 + c_1^{\mathsf T})$. The second-order part needs
+no two-electron integrals.
+
+\paragraph{First-order variant.}
+\code{bch_order=1} keeps only the first commutator with half weight,
+$\hat H + \tfrac12[\hat H,\hat A]_1$. It was the default of some modules of
+version~0.2; the second-order form (\code{bch_order=2}) is the default now.
+
+\subsection{Cost}
+
+One cycle needs the integrals $(ia|jb)$, $(ia|pb)$ and $(ia|jp)$ and
+contractions that scale as $o^2v^2N$ (first order) and $o^2v^3$ (second
+order), where $o$, $v$ and $N$ are the numbers of occupied, virtual and all
+orbitals. The cost is therefore $O(N^5)$ per cycle, like MP2. With exact
+integrals the first index pair is transformed once per cycle,
+$(ia|\mu\nu)$; with density fitting the three-index tensors $B^Q_{pa}$ and
+$B^Q_{ip}$ are used. Memory is dominated by the amplitudes, $O(o^2v^2)$, and
+by the three-index or half-transformed integrals.
+
+\section{O2BMP2}
+\label{sec:theory-o2bmp2}
+
+Same-spin amplitudes are dropped and opposite-spin amplitudes are scaled,
+$c_{\mathrm{SS}}=0$ and $c_{\mathrm{OS}}=c$. The scaling acts on the amplitudes
+that enter $v$, so it changes the orbitals and orbital energies and not only
+the energy. More generally, the attributes \code{c_os} and \code{c_ss} scale
+the opposite-spin and same-spin amplitudes independently; $(1,1)$ is OBMP2,
+$(0,0)$ is Hartree--Fock.
+
+There is no universal value of $c_{\mathrm{OS}}$. The published choices are
+1.2 (singlet--triplet gaps, charge-transfer excitations), 1.1 (ionization
+potentials) and 1.7 (inverted singlet--triplet gaps). \code{pycmf.O2BMP2}
+therefore has no default. An $O(N^4)$ algorithm based on the Laplace
+transformation is not implemented.
+
+\section{One-body double hybrids: OBDH and O2BDH}
+\label{sec:theory-obdh}
+
+For a double-hybrid functional with exact-exchange fraction $a_x$ and
+correlation weight $a_c$,
+\begin{equation}
+  \fbar = f^{\mathrm{KS}}\big[a_x\,\mathrm{HF} + (1-a_x)\,X,\ (1-a_c)\,C\big]
+          + a_c\,v_{\mathrm{OBMP2}},
+  \qquad
+  E = E^{\mathrm{KS}} + a_c\big(c_0 + \textstyle\sum_i v_{ii}\big),
+\end{equation}
+where $X$ and $C$ are the semilocal exchange and correlation functionals.
+$v_{\mathrm{OBMP2}}$ is built with the HF Fock matrix of the current orbitals
+and with amplitudes whose denominators are the eigenvalues of $\fbar$. With
+$a_x=a_c=1$ the method is OBMP2; with $a_c=0$ it is the hybrid functional.
+O2BDH uses opposite-spin amplitudes only, scaled by $c_{\mathrm{OS}}$.
+
+The Kohn--Sham part is evaluated by \pyscf{} (libxc). The default functional
+is B2PLYP. The global double hybrids of Table~\ref{tab:dh} are available by
+name. Their parameters were fitted with a perturbative second-order energy on
+Kohn--Sham orbitals and have not been re-optimised for the self-consistent
+scheme.
+
+\begin{table}[!htb]
+\centering
+\small
+\caption{Double hybrids available by name (\code{pycmf.mol.obdh.FUNCTIONALS}).}
+\label{tab:dh}
+\begin{tabular}{@{}l l l l l l@{}}
+\toprule
+Name & $a_x$ & $a_c$ & Exchange & Correlation & Reference \\
+\midrule
+B2PLYP    & 0.53 & 0.27  & B88   & LYP & Grimme (2006) \\
+mPW2PLYP  & 0.55 & 0.25  & mPW91 & LYP & Schwabe and Grimme (2006) \\
+B2T-PLYP  & 0.60 & 0.31  & B88   & LYP & Tarnopolsky \emph{et al.} (2008) \\
+B2GP-PLYP & 0.65 & 0.36  & B88   & LYP & Karton \emph{et al.} (2008) \\
+B2K-PLYP  & 0.72 & 0.42  & B88   & LYP & Tarnopolsky \emph{et al.} (2008) \\
+PBE0-DH   & 0.5  & 0.125 & PBE   & PBE & Br\'emond and Adamo (2011) \\
+PBE-QIDH  & $3^{-1/3}$ & $1/3$ & PBE & PBE & Br\'emond \emph{et al.} (2014) \\
+PBE0-2    & $2^{-1/3}$ & $1/2$ & PBE & PBE & Chai and Mao (2012) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+OBDH and O2BDH have not yet been described in a publication; this manual and
+the docstring of \code{pycmf.mol.obdh} are their definition.
+
+\section{State-specific excited states}
+\label{sec:theory-mom}
+
+The correlated Fock operator is a one-body operator, so non-Aufbau
+determinants can be optimised as in $\Delta$SCF. The calculation starts from a
+MOM-HF determinant. After each diagonalisation the orbitals with the largest
+overlap with the occupied space of the previous cycle (\code{'mom'}, Gilbert,
+Besley and Gill) or of the initial determinant (\code{'imom'}, Barca, Gilbert
+and Gill) are occupied. Excitation energies are differences of total
+energies. An open-shell singlet obtained this way is a spin-mixed determinant
+($\langle S^2\rangle\approx 1$).
+
+\section{One-body downfolding (OBDF)}
+\label{sec:theory-obdf}
+
+Let $T_{\mathrm{act}}$ be the amplitudes with all four indices in an active
+space. The external correlation potential and constant are
+\begin{equation}
+  v^{\mathrm{ext}} = v[T] - v[T_{\mathrm{act}}],\qquad
+  c_0^{\mathrm{ext}} = c_0[T]-c_0[T_{\mathrm{act}}],
+\end{equation}
+and the active-space Hamiltonian is
+\begin{equation}
+  \hat H_{\mathrm{act}} = E_{\mathrm{core}}
+  + \sum_{tu}\bar h_{tu}\,\hat a^\dagger_t\hat a_u
+  + \tfrac12\sum_{tuvw}(tu|vw)\,\hat a^\dagger_t\hat a^\dagger_v\hat a_w\hat a_u,
+\end{equation}
+\begin{equation}
+  \bar h = h + v^{\mathrm{HF}}_{\mathrm{core}} + v^{\mathrm{ext}},\qquad
+  E_{\mathrm{core}} = E_{\mathrm{nuc}} + E^{\mathrm{HF}}_{\mathrm{core}}
+  + c_0^{\mathrm{ext}} + \sum_{i\in\mathrm{core}} v^{\mathrm{ext}}_{ii}.
+\end{equation}
+Only the one-body integrals are dressed; the two-electron integrals are the
+bare ones, so $\hat H_{\mathrm{act}}$ has the structure of a CASCI
+Hamiltonian and can be handed to any solver (FCI, DMRG, selected CI, quantum
+algorithms).
+
+Two limits hold exactly and are tested: if the active space contains all
+orbitals, $\hat H_{\mathrm{act}}=\hat H$ (FCI energy); if it is empty,
+$E_{\mathrm{core}}=E_{\mathrm{OBMP2}}$. For any active space the reference
+determinant has the energy
+\begin{equation}
+  \langle\Phi|\hat H_{\mathrm{act}}|\Phi\rangle
+  = E_{\mathrm{OBMP2}}-E_c[T_{\mathrm{act}}],\qquad
+  E_c[T_{\mathrm{act}}]=c_0[T_{\mathrm{act}}]+\sum_i v[T_{\mathrm{act}}]_{ii}:
+\end{equation}
+the correlation energy of the active double excitations is what is left to
+the active-space solver.
+
+\section{Properties}
+\label{sec:theory-properties}
+
+\begin{itemize}
+  \item \emph{HF-like density}: the density of the OBMP2 determinant.
+  \item \emph{MP2-like density}: $\gamma_{\mathrm{oo}}=1-R^{\mathrm{occ}}$ and
+        $\gamma_{\mathrm{vv}}=R^{\mathrm{vir}}$ with the converged amplitudes
+        (unrelaxed). After one cycle from HF orbitals it equals the unrelaxed
+        MP2 density.
+  \item $\langle S^2\rangle$ of the determinant, optionally with the
+        first-order doubles correction
+        $\langle S^2\rangle = \langle S^2\rangle_{\mathrm{det}}
+        - \sum_{ia,jb} S_{ib}S_{ja}t_{ia,jb}$, where $S$ is the overlap of
+        the $\alpha$ and $\beta$ orbitals.
+  \item Dipole moments and isotropic hyperfine coupling constants as
+        expectation values over either density.
+  \item Koopmans-type ionization potentials and electron affinities from the
+        eigenvalues of $\fbar$.
+\end{itemize}
+
+\section{Projection embedding in DFT}
+\label{sec:theory-embed}
+
+In the projection-based embedding (\code{pycmf.embed}, experimental) the two
+levels have their own functionals. A Kohn--Sham calculation of the full
+system with the low-level functional \code{xc_env} gives the densities
+$\gamma_A$ and $\gamma_B$ of the subsystem and of the environment (SPADE
+partition) and the embedding potential
+\begin{equation}
+  v_{\mathrm{emb}} = v^{\mathrm{env}}[\gamma_A+\gamma_B]-v^{\mathrm{env}}[\gamma_A]
+  +\mu\,S\gamma_BS .
+\end{equation}
+The subsystem is then treated with OBMP2 or OBDH (with its own double hybrid)
+in this potential, optionally in a virtual space truncated by concentric
+localization, and the total energy is
+\begin{equation}
+  E = E^{\mathrm{high}}[\gamma_A'] + E^{\mathrm{env}}[\gamma_A'+\gamma_B]
+  -E^{\mathrm{env}}[\gamma_A'] + \mu\,\mathrm{tr}(\gamma_A'S\gamma_BS),
+\end{equation}
+with $\gamma_A'$ the relaxed density of the embedded subsystem. Two limits are
+exact and tested: with all atoms in the subsystem $E$ is the energy of the
+high-level method, and with the same functional on both levels and $a_c=0$ it
+is the Kohn--Sham energy of the full system.
+
+\section{Periodic systems}
+\label{sec:theory-pbc}
+
+For a crystal with a $k$-point mesh of $\Nk$ points the working equations are
+those of Section~\ref{sec:theory-obmp2}, spin-summed and with conservation
+of crystal momentum. For the four $k$-points $(k_i,k_a,k_j,k_b)$ of a double
+excitation $ia\to jb$,
+\begin{equation}
+  g_{iajb} = \frac{(ia|jb)}{\Nk},\qquad
+  t_{iajb} = \frac{g^*_{iajb}}{\varepsilon_i-\varepsilon_a+\varepsilon_j-\varepsilon_b-\Delta},\qquad
+  \bar t_{iajb} = \alpha\,t_{iajb} - \beta\,t_{ibja},
+\end{equation}
+with $\alpha = (c_{\mathrm{SS}}+c_{\mathrm{OS}})/2$ and $\beta =
+c_{\mathrm{SS}}/2$ in the terms linear in the amplitudes, and the squares of
+the scaling factors in the quadratic terms. All two-electron integrals are
+products of Gaussian density-fitting tensors,
+\begin{equation}
+  (p k_1, q k_2 \,|\, r k_3, s k_4) = \sum_Q L^Q_{pq}(k_1,k_2)\,L^Q_{rs}(k_3,k_4),
+\end{equation}
+so no four-index transformation is performed. The algorithm, the use of
+$k$-point symmetry and the quasiparticle methods built on KOBMP2 are
+described in Chapter~\ref{ch:periodic}.

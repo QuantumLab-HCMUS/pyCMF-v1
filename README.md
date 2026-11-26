@@ -206,6 +206,7 @@ stay out of the top-level exports and call `core.status.experimental(name)` in `
 | `docs/validation.md` | what each test checks |
 | `docs/kpoints.md` | k-point algorithm, timings, `KOBDF` |
 | `docs/migration.md` | name mapping from 0.2 to 1.0 |
+| `docs/manual/pycmf_manual.pdf` | full user and developer manual (LaTeX source in `docs/manual/`) |
 
 If you change behaviour, numbers or test counts, update the matching doc. The old 0.2 inputs in
 `benchmarks/legacy-0.2/` use the old interface and do not run as is.

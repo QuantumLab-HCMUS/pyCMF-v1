@@ -1,0 +1,81 @@
+\chapter{Migrating from pyCMF 0.2}
+\label{ch:migration}
+
+Version 1.0 is a rewrite on a common core. One class per method replaces the
+many modules of version 0.2, and variants are attributes.
+
+\begin{longtable}{@{}p{0.45\textwidth} p{0.49\textwidth}@{}}
+\caption{Names of version 0.2 and their replacement.}\\
+\toprule
+Version 0.2 & Version 1.0 \\
+\midrule
+\endfirsthead
+\toprule
+Version 0.2 & Version 1.0 \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\code{OBMP2(mf)}, \code{OBMP2_slow}, \code{OBMP2_einsum} & \code{pycmf.OBMP2(mf)} with an RHF reference \\
+\code{UOBMP2(mf)}, \code{UOBMP2_slow} & \code{pycmf.OBMP2(mf)} with a UHF or ROHF reference \\
+\code{DFOBMP2}, \code{DFUOBMP2}, \code{DFUOBMP2_einsum} & \code{pycmf.OBMP2(mf_df)} or \code{.density_fit()} \\
+\code{UOBMP2_SCS}; \code{css}, \code{cos} & \code{c_ss}, \code{c_os}; \code{pycmf.O2BMP2(mf, c_os=...)} \\
+\code{UOBMP2_mom}, \code{UOBMP2_mom_diis}, \code{mom_select=True} & \code{occupation='imom'} \\
+\code{UHF_mom_diis} & \code{pyscf.scf.addons.mom_occ} \\
+\code{second_order=True/False}, \code{ampf} & \code{bch_order=2} / \code{1} \\
+\code{thresh}, \code{niter}, \code{shift} & \code{conv_tol}, \code{max_cycle}, \code{level_shift} \\
+\code{mp.ene_tot} & \code{mp.e_tot} \\
+\code{kernel()} returning a tuple & \code{kernel()} returns \code{e_tot}; the rest are attributes \\
+\code{OBMP2_downfold}, \code{UOBMP2_downfold} with intermediates copied by hand & \code{pycmf.OBDF(mp, ncas, nelecas, cas_list=...)} \\
+\code{h1mo_act_eff}, \code{h2mo_act}, \code{ene_inact} & \code{get_h1eff()} $\to$ \code{(h1eff, e_core)}, \code{get_h2eff()} \\
+\code{caslist} counted from 1 & \code{cas_list} counted from 0 \\
+\code{DFTOBMP2}, \code{OBDH_CL} with \code{alphaa=(ax, ac)} & \code{pycmf.OBDH(mf, ax=..., ac=...)} or \code{xc='B2PLYP'} \\
+\code{OBDH_CL}, \code{OBMP2_CL} with \code{use_embed=True} & \code{pycmf.embed.EmbeddedOBDH}, \code{EmbeddedOBMP2} \\
+\code{make_fc(dm)} & \code{mp.hfcc(correlated=False)} \\
+\code{make_rdm1(use_t2=...)} & \code{mp.make_rdm1(correlated=...)} \\
+\code{ROOBMP2} (\code{OBMP/ro_obmp2.py}) & \code{pycmf.mol.roobmp2.ROOBMP2} \\
+\code{KOBMP2} ($k$-point, restricted) & \code{pycmf.pbc.KOBMP2}; old names still work \\
+\code{KUOBMP2} & \code{pycmf.pbc.KUOBMP2} (interface unchanged) \\
+\code{KROBDF} with intermediates copied by hand & \code{mp.downfold(ncas, nelecas)} $\to$ \code{KOBDF} \\
+\code{make_fock_df(scf_active=True)}, \code{make_ipea()} & \code{ham.scf()}, \code{ham.self_energy()} and \code{ham.quasiparticle()} \\
+\code{Supercell}, \code{solve_fci}, \code{solve_ccsd} & \code{ham.supercell()}, \code{ham.kernel()}, \code{ham.as_scf()} \\
+\end{longtable}
+
+\section*{Example}
+
+Version 0.2:
+\begin{lstlisting}[style=python]
+mp = UOBMP2_mom_diis(mf)
+mp.second_order = True; mp.css = 0.0; mp.cos = 1.2
+mp.mom_select = True; mp.thresh = 1e-8
+e = mp.kernel()
+\end{lstlisting}
+
+Version 1.0:
+\begin{lstlisting}[style=python]
+mp = pycmf.O2BMP2(mf, c_os=1.2, occupation='imom')
+e = mp.kernel()
+\end{lstlisting}
+
+\section*{Changes in behaviour}
+
+\begin{itemize}
+  \item \code{bch_order=2} is the default everywhere. In 0.2 \code{OBMP2}
+        defaulted to the first-order variant and \code{DFOBMP2} to second
+        order.
+  \item Spin scaling acts on the amplitudes, as in the O2BMP2 paper. The
+        different scaling of \code{uobmp2_scs.py} was not carried over.
+  \item The mean-field object is no longer modified by a calculation.
+  \item Convergence is tested on the energy and on $\bar f_{ia}$.
+  \item DIIS uses the commutator $[F,D]$ per spin, with at most
+        \code{diis_space} vectors.
+  \item \code{frozen} orbitals raise \code{NotImplementedError} for molecules.
+  \item Not carried over: the second-order Koopmans correction
+        \code{make_IPEA} for molecules, the CAS variants, the
+        \code{stabilize_scf} helper (use \code{mf.stability()}), and the
+        Wannier90, real-space Hamiltonian, band-structure and DOS tools of the
+        KROBDF package.
+  \item The input scripts of version 0.2 are kept in
+        \code{benchmarks/legacy-0.2/}. They use the old interface and must be
+        ported before use.
+\end{itemize}

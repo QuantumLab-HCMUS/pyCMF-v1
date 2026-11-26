@@ -1,0 +1,187 @@
+\chapter{Validation, Performance and Known Issues}
+\label{ch:validation}
+
+\section{Maturity of the methods}
+
+\begin{longtable}{@{}p{0.24\textwidth} p{0.34\textwidth} p{0.34\textwidth}@{}}
+\caption{What has been checked and what is open.}\\
+\toprule
+Method & Checked against & Open points \\
+\midrule
+\endfirsthead
+\toprule
+Method & Checked against & Open points \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+OBMP2 (R, U; exact and DF) & MP2 at the first cycle; 0.2 energies to $10^{-10}$ & no frozen core, no analytic gradients \\
+O2BMP2 & 0.2 energies & no $O(N^4)$ Laplace algorithm; no recommended \code{c_os} \\
+MOM, IMOM & 0.2 energies & open-shell singlets are spin-mixed \\
+OBDF & FCI and OBMP2 limits; 0.2 energies & FCIDUMP for restricted references only \\
+OBDH, O2BDH & OBMP2 and hybrid-DFT limits; 0.2 energies & published parameters, not re-optimised; no benchmark \\
+RO-OBMP2 (exp.) & 0.2 energies to $10^{-10}$ & no formal derivation, no DIIS, no benchmark \\
+Embedding (exp.) & 0.2 energies; whole system and DFT-in-DFT limits & unrestricted only; no benchmark \\
+KOBMP2, KO2BMP2 (exp.) & 0.2 code cycle by cycle; KMP2 at the first cycle; molecular code at $\Gamma$ & no published benchmark yet \\
+KUOBMP2 (exp.) & -- & known inconsistency (issue 1) \\
+KOBDF (exp.) & four-index KROBDF code; molecular OBDF at $\Gamma$; complete and empty active space; sum rule & closed shell; no Wannier90, band or DOS tools \\
+\end{longtable}
+
+``0.2 energies'' are total energies of the previous implementation (commit
+29efd04) on small molecules. They are regression values, not an independent
+validation. None of the published benchmark numbers has been recomputed with
+version 1.0 yet.
+
+\section{What the test suite checks}
+
+\begin{longtable}{@{}p{0.55\textwidth} p{0.20\textwidth} p{0.17\textwidth}@{}}
+\toprule
+Property & Test file & Reference \\
+\midrule
+\endfirsthead
+\toprule
+Property & Test file & Reference \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+First cycle from HF orbitals is MP2 (R, U) and DF-MP2 & \code{test_obmp2.py} & \code{pyscf.mp} \\
+First-cycle correlated density is the unrelaxed MP2 density & \code{test_properties.py} & \code{pyscf.mp} \\
+Restricted equals unrestricted for closed shells & all & internal \\
+Converged orbital energies are eigenvalues of $\fbar$; $\bar f_{ia}=0$ & \code{test_obmp2.py} & internal \\
+DIIS on and off give the same energy & \code{test_obmp2.py} & internal \\
+The mean-field object is not modified & \code{test_obmp2.py} & internal \\
+$c_{\mathrm{OS}}=c_{\mathrm{SS}}=0$ is HF; $c_{\mathrm{OS}}=c_{\mathrm{SS}}=1$ is OBMP2 & \code{test_o2bmp2.py} & internal \\
+OBDH with $a_x=a_c=1$ is OBMP2; with $a_c=0$ hybrid DFT & \code{test_obdh.py} & \code{pyscf.dft} \\
+OBDF with all orbitals active is FCI; with none it is OBMP2 & \code{test_obdf.py} & \code{pyscf.fci} \\
+FCIDUMP round trip & \code{test_obdf.py} & \code{pyscf.tools} \\
+Total energies of version 0.2 for all stable methods & all & version 0.2 \\
+$\langle S^2\rangle$ and hyperfine couplings of OH & \code{test_properties.py} & version 0.2 \\
+RO-OBMP2 and embedding; embedding limits & \code{test_experimental.py} & 0.2, \code{pyscf.dft} \\
+Named double hybrids equal their four parameters & \code{test_obdh.py} & internal \\
+KOBDF: KROBDF code, $\Gamma$ point, limits, sum rule, supercell solvers & \code{test_kobdf.py} & KROBDF, \code{pyscf.fci}, \code{pyscf.cc} \\
+KOBMP2: 0.2 code cycle by cycle, KMP2, $\Gamma$ point, symmetry, $k$-dependent occupations, disk storage, MPI & \code{test_kobmp2.py} & 0.2, \code{pyscf.pbc.mp} \\
+\end{longtable}
+
+Regression values use a tolerance of about $5\times10^{-9}$~Hartree. The
+fixture \code{mf_cache} in \code{tests/conftest.py} provides shared
+molecules for the whole session.
+
+\section{Agreement with version 0.2}
+
+\begin{table}[!htb]
+\centering
+\small
+\caption{Largest deviation of total energies from version 0.2 (6-31G unless noted).}
+\begin{tabularx}{\textwidth}{@{}X l r@{}}
+\toprule
+Method & Systems & $\max|\Delta E|$ (Ha) \\
+\midrule
+OBMP2, O2BMP2 (R, U, exact and DF, BCH 1 and 2, level shift) & H$_2$O, OH, CH$_2$ & $10^{-10}$ \\
+state-specific OBMP2 / O2BMP2 (MOM) & H$_2$O & $2\times10^{-10}$ \\
+OBDF, five active spaces & H$_2$/cc-pVDZ, LiH, H$_2$O & $4\times10^{-10}$ \\
+OBDH, O2BDH & H$_2$O, CH$_2$, NH$_2$ & $4\times10^{-11}$ \\
+OBDH, O2BDH & OH ($^2\Pi$, degenerate) & $10^{-7}$ \\
+RO-OBMP2 & OH, CH$_2$, NH$_2$ & $10^{-13}$ \\
+embedded OBMP2 / OBDH, with and without CL & (H$_2$O)$_2$ & $9\times10^{-11}$ \\
+KOBMP2 & diamond, BN; up to 27 $k$-points & $3\times10^{-10}$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Performance of the molecular code}
+
+Wall time per cycle for benzene/cc-pVDZ (114 basis functions, 21 occupied
+orbitals) on two threads of a shared virtual machine (variations of about
+20\,\% between runs; measure on your own hardware with
+\code{benchmarks/timing.py}):
+
+\begin{table}[!htb]
+\centering
+\small
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+Calculation & 0.2 (s) & 1.0 (s) & Ratio \\
+\midrule
+restricted, exact integrals     & 29.5 & 3.0 & 10 \\
+unrestricted, exact integrals   & 13.4 & 7.6 & 1.8 \\
+restricted, density fitting     & 10.5 & 1.8 & 6 \\
+unrestricted, density fitting   & 7.6  & 3.6 & 2.1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The remaining cost with exact integrals is the $O(N^5)$ transformation of the
+second index pair; use density fitting for larger molecules.
+
+\section{Examples}
+
+Every script in \code{examples/} has its expected output in
+\code{examples/reference_output/}, and \code{check_examples.py} compares all
+printed numbers with it.
+
+\begin{table}[!htb]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+Script & Shows \\
+\midrule
+\code{01-obmp2.py} & restricted and unrestricted OBMP2, exact and density-fitted integrals \\
+\code{02-o2bmp2.py} & O2BMP2 and the role of \code{c_os}: singlet--triplet gap of CH$_2$ \\
+\code{03-excited_state.py} & state-specific excited state with MOM \\
+\code{04-obdf.py} & downfolding along the N$_2$ dissociation curve, FCIDUMP export \\
+\code{05-obdh.py} & OBDH and O2BDH, double hybrids by name or by parameters, open shells \\
+\code{06-properties.py} & densities, dipole moment, $\langle S^2\rangle$, hyperfine couplings of CN \\
+\code{experimental/ro_obmp2.py} & RO-OBMP2 for OH \\
+\code{experimental/embedding.py} & OBDH and OBMP2 embedded in PBE, water dimer \\
+\code{experimental/kobmp2.py} & KOBMP2 and KO2BMP2 for diamond, with and without symmetry \\
+\code{experimental/kobmp2_mpi.py} & KOBMP2 with MPI \\
+\code{experimental/kobdf.py} & $k$-point downfolding, quasiparticles and supercell solvers \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Known issues}
+\label{sec:known-issues}
+
+\begin{enumerate}
+  \item \textbf{KUOBMP2 does not reproduce KOBMP2 for a closed-shell cell.}
+        For diamond (gth-szv, two $k$-points) KOBMP2 gives
+        $-10.6408$~Hartree and KUOBMP2 $-8.6381$~Hartree from the same HF
+        energy ($-10.5311$). The moved code reproduces the 0.2 numbers
+        exactly, so the discrepancy is in the method code.
+  \item \textbf{Hard-coded band indices in \code{kuobmp2.py}.} The
+        ionization analysis addresses orbitals $n_{\mathrm{occ}}-3,\ldots,
+        n_{\mathrm{occ}}+1$; cells with fewer than three occupied or two
+        virtual bands per $k$-point raise \code{IndexError}.
+  \item \textbf{KUOBMP2 is still the four-index code of 0.2} and has the cost
+        problems that KOBMP2 had.
+  \item \textbf{Embedding functional.} In 1.0 the two levels have separate
+        functionals. The two conventions give very different energies
+        ($-152.5729$ against $-152.6107$~Hartree for the water dimer of the
+        tests); \code{xc=xc_env} reproduces version 0.2.
+  \item \textbf{KROBDF with \code{exxdiv='ewald'}.} The constant of the old
+        KROBDF code is higher by $\xi N_{\mathrm{act}}$ than the value for
+        which the sum rule holds. \code{KOBDF} puts $-\xi N_{\mathrm{act}}/2$
+        in the constant and the shift in \code{get_fock}.
+  \item \textbf{Degenerate open shells with OBDH} converge only to
+        $\|\bar f_{ia}\|\sim10^{-6}$ (Section~\ref{sec:obdh}).
+  \item \textbf{The energy is not variational}, so its error is of first
+        order in $\bar f_{ia}$. Use a tight \code{conv_tol_grad} when energy
+        differences below $10^{-6}$~Hartree matter.
+\end{enumerate}
+
+\section{Limitations}
+
+\begin{itemize}
+  \item No frozen core for molecules and no analytic gradients.
+  \item No $O(N^4)$ Laplace-transformed algorithm for O2BMP2 or KO2BMP2.
+  \item Periodic code: closed-shell \code{KRHF} references only (except the
+        old KUOBMP2), three-dimensional systems, Gaussian density fitting,
+        no GPU path, no real arithmetic for $\Gamma$-only meshes, no
+        finite-size correction.
+  \item P-EOM-MP2 keeps only the degenerate frontier level in the singles
+        space and is not MPI-parallel.
+  \item KOBDF: closed shell only; the supercell orbitals are not localized.
+\end{itemize}

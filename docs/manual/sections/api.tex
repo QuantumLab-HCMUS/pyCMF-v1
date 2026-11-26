@@ -1,0 +1,168 @@
+\chapter{API Reference}
+\label{ch:api}
+
+This appendix lists the public classes and functions with their signatures.
+Attributes and results are described in Chapters~\ref{ch:molecular} and
+\ref{ch:periodic}. The docstrings in the source code are the authoritative
+reference; \code{help(pycmf.OBMP2)} prints them.
+
+\newcommand{\apientry}[2]{\par\noindent\code{#1}\par\vspace{-0.3em}\begin{list}{}{\leftmargin=1.5em\topsep=0pt}\item #2\end{list}\vspace{0.3em}}
+
+\section{Top level: \texttt{pycmf}}
+
+\code{pycmf.__version__} is \code{'1.0.0'}. Exported names:
+\code{OBMP2}, \code{O2BMP2}, \code{ROBMP2}, \code{UOBMP2}, \code{OBDH},
+\code{O2BDH}, \code{ROBDH}, \code{UOBDH}, \code{OBDF}, \code{properties}.
+
+\apientry{OBMP2(mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs)}{%
+Returns \code{UOBMP2} for a UHF or ROHF reference and \code{ROBMP2}
+otherwise. \code{mo_coeff} and \code{mo_occ} replace the starting orbitals and
+occupations of \code{mf}. \code{frozen} must be \code{None} or 0. Keyword
+arguments are set as attributes.}
+
+\apientry{O2BMP2(mf, c_os=None, frozen=None, mo_coeff=None, mo_occ=None, **kwargs)}{%
+OBMP2 with \code{c_ss=0} and the given \code{c_os}. Raises
+\code{ValueError} without \code{c_os}.}
+
+\apientry{OBDH(mf, ax=None, ac=None, frozen=None, mo_coeff=None, mo_occ=None, xc=None, **kwargs)}{%
+Returns \code{UOBDH} or \code{ROBDH}. \code{xc} is a name of
+\code{FUNCTIONALS} or a \pyscf{} functional string; explicit \code{ax},
+\code{ac} override the named parameters. \code{ax} together with a functional
+string raises \code{ValueError}.}
+
+\apientry{O2BDH(mf, c_os=None, ax=None, ac=None, frozen=None, mo_coeff=None, mo_occ=None, xc=None, **kwargs)}{%
+OBDH with \code{c_ss=0} and the given \code{c_os} (mandatory).}
+
+\apientry{OBDF(mp, ncas, nelecas, cas_list=None)}{%
+Active-space Hamiltonian from a converged OBMP2 or O2BMP2 object. Methods:
+\code{build()}, \code{get_h1eff()} $\to$ \code{(h1eff, e_core)},
+\code{get_h2eff()}, \code{kernel(ci0=None, **kwargs)} $\to$ total energy,
+\code{to_fcidump(filename, tol=1e-15, **kwargs)}.}
+
+\section{Molecular classes: \texttt{pycmf.mol}}
+
+\apientry{class OBMP2Base(lib.StreamObject)}{%
+Base class. Methods: \code{kernel()}, \code{run()}, \code{dump_flags()},
+\code{density_fit(auxbasis=None, with_df=None)}, \code{get_hf()},
+\code{ao2mo()}, \code{build(mo_energy, mo_coeff, nocc)},
+\code{get_reference(dm, h1e, vhf, fock_hf, e_hf)},
+\code{make_amplitudes(mo_energy, mo_coeff, nocc, ints=None)},
+\code{get_intermediates(with_amplitudes=False)},
+\code{get_fock(ao_repr=False)}, \code{get_vcorr()},
+\code{make_rdm1(ao_repr=True, correlated=False)},
+\code{dip_moment(correlated=False, unit='Debye', verbose=None)},
+\code{ip_koopmans()}, \code{ea_koopmans()}.}
+
+\apientry{class ROBMP2(OBMP2Base)}{%
+Closed-shell restricted reference. \code{spin_square()} returns
+\code{(0, 1)}. Raises \code{TypeError} for UHF or ROHF objects.}
+
+\apientry{class UOBMP2(OBMP2Base)}{%
+Unrestricted reference (ROHF and RHF objects are converted). Additional
+methods \code{spin_square(correlated=False)} and
+\code{hfcc(atoms=None, correlated=False)}.}
+
+\apientry{class Intermediates}{%
+Quantities of one cycle: \code{e_tot}, \code{e_ref}, \code{e_corr},
+\code{e_hf}, \code{dm_chan}, \code{fock_ao}, \code{fock_mo},
+\code{fock_hf}, \code{v}, \code{c0}, \code{rdm}, \code{blocks},
+\code{nocc}.}
+
+\apientry{class ROBDH(ROBMP2), class UOBDH(UOBMP2)}{%
+Double hybrids. Additional methods \code{set_functional(name)},
+\code{get_xc()}, \code{get_ks()}.}
+
+\apientry{obdh.FUNCTIONALS, obdh.double_hybrid(name)}{%
+Dictionary name $\to$ \code{(ax, ac, xc_x, xc_c)} with the keys
+\code{B2PLYP}, \code{MPW2PLYP}, \code{B2TPLYP}, \code{B2GPPLYP},
+\code{B2KPLYP}, \code{PBE0DH}, \code{PBEQIDH}, \code{PBE02};
+\code{double_hybrid} normalises a name (case, hyphens, underscores) and returns
+the tuple or \code{None}.}
+
+\apientry{class roobmp2.ROOBMP2(UOBMP2)}{%
+\code{ROOBMP2(mf, frozen=None, mo_coeff=None, mo_occ=None)}; ROHF reference,
+experimental.}
+
+\section{Properties: \texttt{pycmf.properties}}
+
+\apientry{rdm.make_rdm1(mp, ao_repr=True, correlated=False)}{One-particle density matrix.}
+\apientry{rdm.dip_moment(mp, correlated=False, unit='Debye', verbose=None)}{Dipole moment.}
+\apientry{spin.spin_square(mp, correlated=False)}{$\langle S^2\rangle$ and $2S+1$ (unrestricted).}
+\apientry{hfcc.isotropic(mp, atoms=None, correlated=False)}{Isotropic hyperfine coupling constants in MHz.}
+
+\section{Embedding: \texttt{pycmf.embed} (experimental)}
+
+\apientry{EmbeddedOBMP2(mf, active_atoms=None, **kwargs)}{OBMP2 embedded in DFT.}
+\apientry{EmbeddedOBDH(mf, active_atoms=None, **kwargs)}{OBDH embedded in DFT.}
+\apientry{spade_partition(mol, s1e, mo_occ, atoms, return_sigma=False)}{SPADE partition of the occupied orbitals.}
+\apientry{atom_aos(mol, atoms)}{AO indices of the given atoms.}
+\apientry{concentric_localization(mo_vir, s1e, fock, active_aos, n_shells=1, tol=1e-5, n_span=None)}{Virtual orbitals of the first CL shells.}
+\apientry{shell_sizes(mo_vir, s1e, fock, active_aos, tol=1e-5)}{Sizes of all CL shells.}
+
+\section{Periodic systems: \texttt{pycmf.pbc} (experimental)}
+
+\apientry{KOBMP2(mf, frozen=None, kpt_symmetry=None)}{%
+Methods: \code{kernel()}, \code{run()}, \code{density_fit(auxbasis=None,
+with_df=None)}, \code{get_ovlp()}, \code{build(mo_energy, mo_coeff, nocc)},
+\code{get_fock()}, \code{ip_koopmans()}, \code{ea_koopmans()},
+\code{band_gap()}, \code{init_from_scf()},
+\code{ipea(nvir=4, kpts_index=None)},
+\code{self_energy(nvir=2, kpts_index=None, grid=None, mo_energy=None, nocc=None, scaling='linear')},
+\code{quasiparticle_gap(scheme='static', reference='obmp2')},
+\code{peom_mp2(kpt_v=0, kpts_c=None, symmetry=True)},
+\code{downfold(ncas, nelecas, cas_list=None)}.}
+
+\apientry{KO2BMP2(mf, c_os=None, **kwargs)}{%
+\code{KOBMP2} with \code{c_ss=0}; \code{c_os} is mandatory; further keyword
+arguments (\code{frozen}, \code{kpt_symmetry}) go to the constructor.}
+
+\apientry{remove_linear_dependency_(mf, threshold=1e-4)}{%
+Canonical orthogonalisation per $k$-point for a mean-field object, before
+\code{mf.kernel()}. Modifies and returns \code{mf}.}
+
+\apientry{KOBDF(mp, ncas, nelecas, cas_list=None)}{%
+Methods: \code{build()}, \code{get_h1eff()}, \code{get_cderi(k1, k2)},
+\code{get_h2eff(k1=None, k2=None, k3=None)}, \code{get_jk(dm)},
+\code{reference_rdm1()}, \code{make_rdm1(mo_rot=None)},
+\code{get_fock(dm=None)}, \code{energy_tot(dm=None)},
+\code{scf(dm0=None)}, \code{band_gap()},
+\code{self_energy(nocc=None, nvir=None, kpts_index=None, grid=None, c_os=1.0, c_ss=1.0)},
+\code{quasiparticle(scheme='dynamic')},
+\code{quasiparticle_gap(scheme='dynamic')}, \code{supercell(tol=1e-6)},
+\code{as_scf()}, \code{kernel(ci0=None, **kwargs)}.}
+
+\apientry{kqp.self_energy(mp, nvir=2, kpts_index=None, grid=None, mo_energy=None, nocc=None, scaling='linear')}{%
+List over the $k$-points of dictionaries with \code{'occ'}, \code{'e'},
+\code{'grid'}, \code{'A'}, \code{'B'}, \code{'A0'}, \code{'B0'},
+\code{'dA'}, \code{'dB'} (\code{None} for $k$-points not treated).}
+\apientry{kqp.quasiparticle(se, scheme='static', reference='obmp2', e_ref=None)}{%
+\code{(e_qp, z)}, lists over the $k$-points.}
+\apientry{kqp.band_edges(se, e_qp)}{Quasiparticle energies of the valence and conduction band edges per $k$-point.}
+\apientry{kqp.gaps(se, e_qp)}{%
+(direct gap at the first $k$-point, smallest gap, $k$-index of the valence
+band maximum, $k$-index of the conduction band minimum).}
+\apientry{kpeom.gap(mp, kpt_v=0, kpts_c=None, symmetry=True)}{%
+Dictionary with \code{'ip'}, \code{'ea'} and \code{'gap'}.}
+\apientry{kpeom.ip(mp, kpt=0, nbands=None, symmetry=True, grid=None), kpeom.ea(...)}{%
+P-EOM-MP2 ionization potential and electron affinity at one $k$-point.}
+\apientry{kipea.kernel(mp, nvir=4, kpts_index=None)}{%
+\code{(ip, ea)}, lists over the $k$-points.}
+
+\apientry{KUOBMP2(mf, frozen=0, mo_coeff=None, mo_occ=None)}{%
+Unrestricted $k$-point OBMP2 of version 0.2 with its old interface.}
+
+\section{Core: \texttt{pycmf.core}}
+
+\apientry{scf_loop.kernel(mp, mo_energy, mo_coeff, nocc, verbose=None)}{%
+Self-consistent driver; returns \code{(converged, e_tot, mo_energy,
+mo_coeff, intermediates)}.}
+\apientry{amplitudes.make_blocks(ints, mo_energy, nocc, c_os=1.0, c_ss=1.0, shift=0.0)}{%
+List of spin blocks \code{(x, y, t, tbar)}.}
+\apientry{amplitudes.restrict_to_active(blocks, occ_act, vir_act)}{Blocks with all indices in the active space.}
+\apientry{occupation.select(mo_energy, mo_coeff, nocc, scheme='aufbau', ref_occ=None, s1e=None)}{%
+Reorders the orbitals so that the selected ones come first.
+\code{occupation.SCHEMES = ('aufbau', 'mom', 'imom')}.}
+\apientry{mpi.rank, mpi.size, mpi.split(tasks), mpi.bcast(obj), mpi.allreduce(arrays)}{%
+MPI helpers; no-ops without \code{mpi4py} or with \code{PYCMF_NO_MPI} set.}
+\apientry{status.ExperimentalWarning, status.experimental(name, note='')}{%
+Warning class and the function that emits it.}

@@ -1,0 +1,206 @@
+\chapter{Code Structure and Development}
+\label{ch:architecture}
+
+This chapter is written for developers who want to understand, modify or
+extend \pycmf{}.
+
+\section{Repository layout}
+
+\begin{lstlisting}
+src/pycmf/
+  __init__.py   version and top-level exports (stable methods only)
+  core/         self-consistent driver, DIIS, occupation schemes,
+                amplitudes, MPI helpers, experimental marker
+  mol/          molecules: integrals, correlation potential, OBMP2,
+                O2BMP2, OBDH, O2BDH, RO-OBMP2
+  downfold/     one-body downfolding, FCIDUMP export
+  properties/   densities, dipole moments, <S^2>, hyperfine couplings
+  embed/        projection embedding, concentric localization (experimental)
+  pbc/          k-point OBMP2, O2BMP2, quasiparticles, OBDF (experimental)
+tests/          pytest suite
+examples/       runnable scripts with reference output
+benchmarks/     timing and gap scripts; inputs of version 0.2
+docs/           theory, usage, validation, status, migration, this manual
+\end{lstlisting}
+
+\begin{longtable}{@{}p{0.30\textwidth} p{0.64\textwidth}@{}}
+\caption{Modules of the package.}\\
+\toprule
+Module & Content \\
+\midrule
+\endfirsthead
+\toprule
+Module & Content \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\code{core/scf_loop.py} & self-consistent driver shared by all methods \\
+\code{core/amplitudes.py} & first-order doubles amplitudes as spin blocks; \code{restrict_to_active} \\
+\code{core/occupation.py} & occupation schemes \code{aufbau}, \code{mom}, \code{imom} \\
+\code{core/mpi.py} & optional mpi4py helpers (\code{split}, \code{bcast}, \code{allreduce}) \\
+\code{core/status.py} & \code{ExperimentalWarning} and \code{experimental(name)} \\
+\code{mol/integrals.py} & integral backends \code{IncoreInts} (exact) and \code{DFInts} \\
+\code{mol/bch.py} & correlation potential: first- and second-order BCH terms \\
+\code{mol/obmp2.py} & \code{OBMP2Base}, \code{ROBMP2}, \code{UOBMP2}, factories \code{OBMP2}, \code{O2BMP2} \\
+\code{mol/obdh.py} & \code{ROBDH}, \code{UOBDH}, factories \code{OBDH}, \code{O2BDH}, \code{FUNCTIONALS} \\
+\code{mol/roobmp2.py} & \code{ROOBMP2} (experimental) \\
+\code{downfold/obdf.py} & \code{OBDF} \\
+\code{properties/rdm.py} & densities and dipole moments \\
+\code{properties/spin.py} & $\langle S^2\rangle$ \\
+\code{properties/hfcc.py} & isotropic hyperfine couplings \\
+\code{embed/partition.py} & SPADE partition, AO indices of atoms \\
+\code{embed/cl.py} & concentric localization \\
+\code{embed/projection.py} & \code{EmbeddedOBMP2}, \code{EmbeddedOBDH} \\
+\code{pbc/kobmp2.py} & \code{KOBMP2}, \code{KO2BMP2}, \code{remove_linear_dependency_} \\
+\code{pbc/kintegrals.py} & three-index GDF tensors in memory or HDF5 (\code{KDFInts}) \\
+\code{pbc/kbch.py} & correlation potential with $k$-points \\
+\code{pbc/ksymm.py} & irreducible $k$-points, expansion, symmetrization (\code{KSymmetry}) \\
+\code{pbc/kipea.py} & static IP/EA corrections \\
+\code{pbc/kqp.py} & second-order self-energy and quasiparticle energies \\
+\code{pbc/kpeom.py} & partitioned EOM-MP2 \\
+\code{pbc/kobdf.py} & \code{KOBDF} \\
+\code{pbc/kuobmp2.py} & \code{KUOBMP2} (code of version 0.2) \\
+\end{longtable}
+
+\section{One self-consistent driver}
+
+\code{core.scf_loop.kernel(mp, mo_energy, mo_coeff, nocc)} iterates over a
+list of \emph{channels}. A channel is a spin channel for molecules (one for a
+restricted, two for an unrestricted reference) and an irreducible $k$-point
+for periodic systems. In each cycle the driver
+
+\begin{enumerate}
+  \item calls \code{mp.build(mo_energy, mo_coeff, nocc)}, which returns an
+        \code{Intermediates} object with at least \code{e_tot},
+        \code{fock_ao}, \code{fock_mo} and \code{dm_chan};
+  \item prints the energy, $\Delta E$ and $\|\bar f_{ia}\|$ and checks
+        convergence (both $|\Delta E|<$ \code{conv_tol} and
+        $\|\bar f_{ia}\|<$ \code{conv_tol_grad});
+  \item applies DIIS to the AO Fock matrices with the error vector $[F,D]$
+        projected on a fixed orthonormal basis;
+  \item diagonalises each Fock matrix in the span of the current orbitals,
+        so that truncated or linearly dependent orbital spaces are preserved;
+  \item occupies the new orbitals with \code{occupation.select}.
+\end{enumerate}
+
+It returns \code{(converged, e_tot, mo_energy, mo_coeff, intermediates)}.
+The overlap matrix is taken from \code{mp.get_ovlp()} if the method defines
+it (one per $k$-point) and from the mean field otherwise.
+
+\section{The build step of molecular OBMP2}
+
+\code{OBMP2Base.build} works in this order:
+
+\begin{enumerate}
+  \item HF Fock matrix from the current density (\code{get_hf()} returns the
+        input mean field, or its HF counterpart for a Kohn--Sham object);
+  \item integrals through \code{ao2mo()}: \code{IncoreInts} or
+        \code{DFInts}, depending on \code{with_df};
+  \item amplitude blocks: \code{core.amplitudes.make_blocks}, which applies
+        \code{c_os}, \code{c_ss} and \code{level_shift};
+  \item correlation potential and constant:
+        \code{mol.bch.correlation_potential}, controlled by \code{bch_order};
+  \item \code{get_reference(dm, h1e, vhf, fock_hf, e_hf)}, which returns the
+        reference Fock matrix, the reference energy and the weight of $v$.
+\end{enumerate}
+
+The correlated Fock matrix is then the reference Fock matrix plus the weighted
+potential. \code{ROBMP2} and \code{UOBMP2} differ only in \code{_occ} (2 or
+1 electrons per occupied orbital of a channel) and in \code{_pack} and
+\code{_unpack}, which convert between the arrays of \pyscf{} and the lists of
+channels.
+
+\section{Variants as hooks}
+
+Variants of the method are hooks on this structure, not new modules:
+
+\begin{itemize}
+  \item \code{mol/obdh.py}: a mixin overrides \code{get_reference} so that
+        it returns the Kohn--Sham Fock matrix and energy and the weight
+        $a_c$.
+  \item \code{mol/roobmp2.py}: changes the orbital update.
+  \item \code{embed/projection.py}: adds the embedding potential in
+        \code{get_reference} and computes the subsystem energy.
+  \item \code{downfold/obdf.py}: calls \code{bch.correlation_potential}
+        twice, with all amplitudes and with \code{restrict_to_active}.
+  \item \code{pbc/kobmp2.py}: provides its own \code{build} and
+        \code{get_ovlp} and reuses the driver with $k$-points as channels.
+\end{itemize}
+
+\section{Adding a method}
+
+\begin{enumerate}
+  \item Put the module at its final place (\code{mol/}, \code{pbc/} or
+        \code{core/}) and call \code{pycmf.core.status.experimental(name)}
+        in \code{__init__}. Do not export it in \code{pycmf/__init__.py}.
+  \item Reuse \code{core.scf_loop.kernel} by providing
+        \code{build(mo_energy, mo_coeff, nocc)}; derive from an existing
+        class and override \code{get_reference} where possible.
+  \item Add three kinds of tests: an exact limit (for example ``first cycle
+        from HF orbitals equals \pyscf{} MP2'', ``all orbitals active equals
+        FCI'' or ``$a_c=0$ is hybrid DFT''), a regression value, and input
+        checks.
+  \item When the method has been validated against published or independent
+        results, remove the experimental marker, export it, and update
+        \code{docs/status.md}.
+\end{enumerate}
+
+\section{Coding conventions}
+
+\begin{itemize}
+  \item \textbf{One method per module.} DF, DIIS, MOM, spin scaling and BCH
+        order are attributes. Never add modules named \code{*_slow},
+        \code{*_fast}, \code{*_mom} or \code{*_new}.
+  \item \textbf{Placement.} Molecular code in \code{mol/}, periodic code in
+        \code{pbc/}, shared code in \code{core/}. Reference implementations
+        written as explicit loops belong in \code{tests/}.
+  \item \textbf{\pyscf{} style.} Classes derive from
+        \code{lib.StreamObject}; options are attributes listed in
+        \code{_keys}; \code{kernel()} returns the main result; output goes
+        through \code{pyscf.lib.logger}, never \code{print}.
+  \item \textbf{Never modify the mean-field object} passed by the user. A test
+        checks this.
+  \item \textbf{Lint.} \code{ruff check src/pycmf tests examples} must pass
+        (line length 110, single quotes). \code{src/pycmf/pbc} and
+        \code{benchmarks} are excluded from ruff. The pre-commit hook runs
+        \code{ruff format}.
+\end{itemize}
+
+\section{Development workflow}
+
+\begin{lstlisting}[style=shell]
+$ python3 -m venv .venv
+$ env -u PYTHONPATH .venv/bin/pip install -e ".[dev]"
+$ env -u PYTHONPATH .venv/bin/python -m pytest -m "not slow"   # before merging
+$ env -u PYTHONPATH .venv/bin/python -m pytest                 # with slow tests
+$ env -u PYTHONPATH .venv/bin/python -m pytest tests/test_obmp2.py::test_name
+$ env -u PYTHONPATH .venv/bin/ruff check src/pycmf tests examples
+$ cd examples && env -u PYTHONPATH ../.venv/bin/python check_examples.py --all
+\end{lstlisting}
+
+\code{pytest.ini} sets \code{pythonpath = src}, so the tests also run without
+installing the package. The continuous integration
+(\code{.github/workflows/ci.yml}) runs ruff and the fast tests on Python 3.9
+and 3.12. Development happens on short-lived \code{feature/<name>} branches
+that are rebased on the main branch; releases are tags.
+
+\subsection*{Keeping the documentation consistent}
+
+If a change alters behaviour, numbers or test counts, update the matching
+document: \code{docs/theory.md} (equations), \code{docs/usage.md} (API),
+\code{docs/status.md} (maturity and known issues),
+\code{docs/validation.md} (what each test checks), \code{docs/kpoints.md}
+($k$-point algorithm and timings), \code{docs/migration.md} (names of
+version 0.2), and this manual (\code{docs/manual}).
+
+\subsection*{Building this manual}
+
+\begin{lstlisting}[style=shell]
+$ cd docs/manual
+$ latexmk -pdf pycmf_manual.tex       # or: pdflatex pycmf_manual (twice)
+\end{lstlisting}
+
+The manual uses only standard \LaTeX{} packages (\code{lmodern},
+\code{booktabs}, \code{tabularx}, \code{longtable}, \code{listings},
+\code{enumitem}, \code{fancyhdr}, \code{titlesec}, \code{hyperref}).

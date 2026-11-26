@@ -1,0 +1,139 @@
+% pyCMF 1.0 user and developer manual.
+% Build:  latexmk -pdf pycmf_manual.tex   (or pdflatex twice)
+\documentclass[11pt,a4paper,oneside]{report}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{textcomp}
+\usepackage{microtype}
+\usepackage[margin=2.5cm,headheight=14pt]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+% ---------------------------------------------------------------- layout
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em plus 0.2em minus 0.1em}
+\setlist{itemsep=0.2em, topsep=0.3em}
+\renewcommand{\arraystretch}{1.15}
+\setlength{\emergencystretch}{3em}
+
+\titleformat{\chapter}[hang]{\normalfont\huge\bfseries}{\thechapter}{1em}{}
+\titlespacing*{\chapter}{0pt}{0pt}{2em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small pyCMF 1.0 Manual}
+\fancyhead[R]{\small\nouppercase{\leftmark}}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+% ---------------------------------------------------------------- code
+\lstset{
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  framerule=0.4pt,
+  xleftmargin=4pt,
+  xrightmargin=4pt,
+  framexleftmargin=2pt,
+  aboveskip=0.8em,
+  belowskip=0.8em,
+  showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=true,
+  upquote=true,
+  tabsize=4,
+}
+\lstdefinestyle{python}{language=Python, morekeywords={self}}
+\lstdefinestyle{shell}{language=bash}
+\lstdefinestyle{output}{frame=leftline}
+
+% inline code: characters printed literally, line breaks allowed after
+% _ , . ( = so that long names fit into narrow table columns
+\ExplSyntaxOn
+\str_new:N \l__code_str
+\NewDocumentCommand{\code}{m}
+  {
+    \str_set:Nn \l__code_str {#1}
+    \texttt
+      {
+        \str_map_inline:Nn \l__code_str
+          {
+            \str_case:nnF {##1}
+              {
+                {_} {\_\allowbreak}
+                {,} {,\allowbreak}
+                {.} {.\allowbreak}
+                {(} {(\allowbreak}
+                {=} {=\allowbreak}
+                {'} {\textquotesingle}
+              }
+              {##1}
+          }
+      }
+  }
+\ExplSyntaxOff
+\newcommand{\pycmf}{pyCMF}
+\newcommand{\pyscf}{PySCF}
+\newcommand{\fbar}{\bar f}
+\newcommand{\Nk}{N_k}
+
+\hypersetup{
+  pdftitle={pyCMF 1.0 Manual},
+  pdfauthor={QuantumLab HCMUS},
+  pdfsubject={Correlated mean-field methods built on PySCF},
+}
+
+\begin{document}
+
+% ---------------------------------------------------------------- title
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\Huge\bfseries pyCMF\par}
+  \vspace{0.6cm}
+  {\Large Correlated Mean-Field Methods Built on PySCF\par}
+  \vspace{1.5cm}
+  {\Large User and Developer Manual\par}
+  \vspace{0.4cm}
+  {\large Version 1.0.0\par}
+  \vfill
+  {\large QuantumLab HCMUS\par}
+  \vspace{0.2cm}
+  {University of Science, Vietnam National University Ho Chi Minh City\par}
+  \vspace{1cm}
+  {November 2026\par}
+  \vspace{0.5cm}
+  {\small Source code: \url{https://github.com/QuantumLab-HCMUS/pyCMF-v1}\par}
+\end{titlepage}
+
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+\input{sections/introduction}
+\input{sections/installation}
+\input{sections/theory}
+\input{sections/molecular}
+\input{sections/periodic}
+\input{sections/architecture}
+\input{sections/validation}
+
+\appendix
+\input{sections/api}
+\input{sections/migration}
+\input{sections/references}
+
+\end{document}

@@ -1,0 +1,121 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+\section{What pyCMF is}
+
+\pycmf{} is a Python package of \emph{correlated mean-field methods} built on
+\pyscf{}. Its core method is one-body second-order M\o ller--Plesset
+perturbation theory (OBMP2). In OBMP2 the Hartree--Fock Fock operator is
+replaced by a \emph{correlated Fock operator} that contains a one-body MP2
+correlation potential. The orbitals, the orbital energies and the amplitudes
+are then iterated to self-consistency, at the cost of one MP2 calculation per
+cycle.
+
+Because the correlated Fock operator is a one-body operator, the methods of
+\pycmf{} behave like a mean-field theory in many respects. They give orbitals,
+orbital energies and a single determinant, they can be started from a
+non-Aufbau determinant to describe excited states, and they can be used to
+dress the one-body part of an active-space Hamiltonian. On top of OBMP2 the
+package provides:
+
+\begin{itemize}
+  \item O2BMP2, which keeps only the opposite-spin amplitudes and scales them;
+  \item one-body double hybrids (OBDH, O2BDH), in which a Kohn--Sham Fock
+        matrix is augmented by a scaled OBMP2 correlation potential;
+  \item state-specific excited states with the maximum overlap method (MOM)
+        and its initial variant (IMOM);
+  \item one-body downfolding (OBDF), which produces an active-space
+        Hamiltonian for any many-body solver;
+  \item properties: densities, dipole moments, $\langle S^2\rangle$ and
+        isotropic hyperfine coupling constants;
+  \item experimental extensions: restricted open-shell OBMP2, projection
+        embedding in DFT, and OBMP2 and downfolding for periodic systems with
+        $k$-point sampling.
+\end{itemize}
+
+\section{Methods and their status}
+
+Table~\ref{tab:methods} lists the methods of version~1.0. \emph{Stable}
+methods are covered by the test suite and exported at the top level of the
+package (\code{import pycmf}). \emph{Experimental} methods are under
+development: they are imported from their sub-package, emit an
+\code{ExperimentalWarning} when they are instantiated, and are described in
+Chapter~\ref{ch:validation} together with their known issues.
+
+\begin{table}[!htb]
+\centering
+\small
+\caption{Methods of \pycmf{} 1.0.}
+\label{tab:methods}
+\begin{tabularx}{\textwidth}{@{}l X l l@{}}
+\toprule
+Method & Description & Entry point & Status \\
+\midrule
+OBMP2 & self-consistent one-body MP2, restricted and unrestricted & \code{pycmf.OBMP2} & stable \\
+O2BMP2 & OBMP2 with scaled opposite-spin amplitudes only & \code{pycmf.O2BMP2} & stable \\
+OBDH & one-body double hybrid: Kohn--Sham Fock matrix plus scaled OBMP2 potential & \code{pycmf.OBDH} & stable \\
+O2BDH & OBDH with scaled opposite-spin amplitudes only & \code{pycmf.O2BDH} & stable \\
+OBDF & one-body downfolding to an active-space Hamiltonian & \code{pycmf.OBDF} & stable \\
+excited states & any of the first four with \code{occupation='mom'} or \code{'imom'} & keyword & stable \\
+RO-OBMP2 & restricted open-shell OBMP2 & \code{pycmf.mol.roobmp2.ROOBMP2} & experimental \\
+embedding & OBMP2- and OBDH-in-DFT projection embedding, concentric localization & \code{pycmf.embed} & experimental \\
+KOBMP2, KO2BMP2 & periodic systems, closed shell: density fitting, $k$-point symmetry, MPI & \code{pycmf.pbc} & experimental \\
+KOBDF & downfolding to active bands with $k$-points & \code{pycmf.pbc.KOBDF} & experimental \\
+KUOBMP2 & periodic systems, unrestricted (code of version 0.2) & \code{pycmf.pbc.KUOBMP2} & experimental \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Conventions of this manual}
+
+\begin{itemize}
+  \item Energies are in Hartree unless stated otherwise. For periodic
+        systems all energies are per unit cell.
+  \item Indices $i,j,k,l$ denote occupied orbitals, $a,b,c,d$ virtual
+        orbitals and $p,q,r,s$ general orbitals. Two-electron integrals are
+        written in chemists' notation, $(pq|rs)$.
+  \item Python code is shown in framed boxes. Lines that start with
+        \code{$} are shell commands.
+  \item Names in \texttt{typewriter} font are Python objects or files of the
+        repository. Paths are relative to the root of the repository.
+\end{itemize}
+
+\section{Design principles}
+
+\pycmf{} follows the conventions of \pyscf{}, so that a user of \pyscf{} can
+use it without learning a new interface:
+
+\begin{enumerate}
+  \item A method object is built from a converged mean-field object of
+        \pyscf{}. Options are attributes of the object.
+  \item \code{kernel()} (or \code{run()}, which returns the object itself)
+        performs the calculation and returns the main result, the total
+        energy. All other results are attributes.
+  \item The input mean-field object is never modified.
+  \item Each method has exactly one implementation. Density fitting, DIIS,
+        the occupation scheme, the spin scaling and the order of the
+        Baker--Campbell--Hausdorff expansion are attributes of that
+        implementation, not separate classes or modules.
+\end{enumerate}
+
+\section{How to cite}
+
+If you use \pycmf{}, please cite the papers of the methods you use
+(Appendix~\ref{ch:references}) and \pyscf{}. The file \code{CITATION.cff} in
+the repository contains the same information in machine-readable form.
+
+\begin{itemize}
+  \item OBMP2: Lan and Yanai, J.~Chem.~Phys.~\textbf{138}, 224108 (2013);
+        Tran, J.~Phys.~Chem.~A \textbf{125}, 9242 (2021).
+  \item Densities: Tran, Phys.~Chem.~Chem.~Phys.~\textbf{24}, 19393 (2022).
+  \item O2BMP2: Tran, Nguyen and Tran, J.~Phys.~Chem.~A \textbf{128}, 1543 (2024).
+  \item State-specific excited states: Tran and Tran, J.~Chem.~Phys.~\textbf{162}, 104109 (2025).
+  \item Downfolding: Le and Tran, J.~Phys.~Chem.~A \textbf{127}, 5222 (2023).
+  \item \pyscf{}: Sun \emph{et al.}, WIREs Comput.~Mol.~Sci.~\textbf{8}, e1340 (2018).
+\end{itemize}
+
+\section{License}
+
+\pycmf{} is distributed under the Apache License, Version~2.0 (files
+\code{LICENSE} and \code{NOTICE}). It is developed by QuantumLab HCMUS,
+University of Science, Vietnam National University Ho Chi Minh City.

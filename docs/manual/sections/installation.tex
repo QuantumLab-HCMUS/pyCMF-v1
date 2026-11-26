@@ -1,0 +1,130 @@
+\chapter{Installation}
+\label{ch:install}
+
+\section{Requirements}
+
+\begin{itemize}
+  \item Python 3.9 or newer;
+  \item NumPy 1.22 or newer and SciPy 1.8 or newer;
+  \item \pyscf{} 2.10 or newer;
+  \item optional: \code{mpi4py} 3.1 or newer, for the parallel $k$-point code
+        (an MPI library such as OpenMPI must be installed first);
+  \item optional, for development: \code{pytest}, \code{ruff} and
+        \code{pre-commit}.
+\end{itemize}
+
+The dependencies are declared in \code{pyproject.toml}. \code{pip} installs
+NumPy, SciPy and \pyscf{} automatically if they are missing.
+
+\section{Installing from the repository}
+
+It is recommended to install \pycmf{} into its own virtual environment:
+
+\begin{lstlisting}[style=shell]
+$ git clone https://github.com/QuantumLab-HCMUS/pyCMF-v1.git
+$ cd pyCMF-v1
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+$ pip install --upgrade pip
+$ pip install .                # users
+$ pip install -e ".[test]"     # editable install with pytest
+$ pip install -e ".[dev]"      # also ruff and pre-commit
+$ pip install -e ".[mpi]"      # also mpi4py
+\end{lstlisting}
+
+With an editable install (\code{-e}) changes to the source code in
+\code{src/pycmf} take effect without reinstalling.
+
+\subsection*{Another PySCF on PYTHONPATH}
+
+If the environment variable \code{PYTHONPATH} points to another checkout of
+\pyscf{} (for example an older fork), that checkout takes precedence over the
+\pyscf{} installed in the virtual environment. \pycmf{} then fails or, worse,
+runs with the wrong version. Unset the variable before working with
+\pycmf{}:
+
+\begin{lstlisting}[style=shell]
+$ unset PYTHONPATH
+$ source .venv/bin/activate
+$ python -c "import pyscf; print(pyscf.__version__, pyscf.__file__)"
+\end{lstlisting}
+
+The last command must print a version of at least 2.10 and a path inside
+\code{.venv}. A single command can also be run with the variable removed,
+\code{env -u PYTHONPATH .venv/bin/python script.py}.
+
+\section{Checking the installation}
+
+\begin{lstlisting}[style=shell]
+$ python -c "import pycmf; print(pycmf.__version__)"
+1.0.0
+$ pytest -m "not slow"      # fast tests
+$ pytest                    # all tests, including the slow k-point tests
+\end{lstlisting}
+
+The fast part of the suite has 106 tests and runs in a few minutes; the full
+suite adds nine slower $k$-point tests (symmetry, larger meshes, MPI). Without
+\code{mpi4py} the MPI test is skipped. A complete run on a 20-core
+workstation took about 7~minutes for the fast tests and 2~minutes for the slow
+ones.
+
+The examples can be compared with their reference output:
+
+\begin{lstlisting}[style=shell]
+$ cd examples
+$ python check_examples.py          # stable examples
+$ python check_examples.py --all    # also the experimental ones
+\end{lstlisting}
+
+\section{Parallel execution}
+
+\pycmf{} uses two levels of parallelism.
+
+\begin{description}
+  \item[Threads.] All large tensor contractions are matrix products that call
+        the BLAS library of NumPy and the multithreaded routines of \pyscf{}.
+        The number of threads is set with \code{OMP_NUM_THREADS}.
+  \item[MPI.] The periodic code (\code{KOBMP2}) distributes the loop over
+        $k$-points with \code{mpi4py}. The same script runs on every
+        process; see Section~\ref{sec:kpt-mpi}.
+\end{description}
+
+The product of MPI processes and threads per process must not exceed the
+number of physical cores. Oversubscribed BLAS threads slow a calculation down
+by orders of magnitude. MPI can be switched off without uninstalling
+\code{mpi4py} by setting the environment variable \code{PYCMF_NO_MPI=1}.
+
+\section{Memory and scratch space}
+
+The memory limit of a calculation is the attribute \code{max_memory} (in MB),
+which is taken from the mean-field object. Large intermediate arrays are
+written to the scratch directory of \pyscf{} (\code{TMPDIR} or
+\code{pyscf.lib.param.TMPDIR}). Periodic calculations with density fitting
+can need several gigabytes of disk space for the three-index integrals; see
+Section~\ref{sec:kpt-resources}.
+
+\section{Quick start}
+
+The following script computes the OBMP2 energy of the OH radical and shows
+the main stable methods.
+
+\begin{lstlisting}[style=python]
+from pyscf import gto, scf
+import pycmf
+
+mol = gto.M(atom='O 0 0 0; H 0 0 0.97', basis='cc-pvdz', spin=1)
+mf = scf.UHF(mol).run()
+
+mp = pycmf.OBMP2(mf).run()            # restricted or unrestricted, from mf
+print(mp.e_tot, mp.spin_square())
+
+o2 = pycmf.O2BMP2(mf, c_os=1.2).run() # c_os has no default
+
+mf_df = scf.UHF(mol).density_fit().run()
+dh = pycmf.OBDH(mf_df).run()          # B2PLYP by default
+
+ham = pycmf.OBDF(mp, ncas=5, nelecas=(3, 2))   # active-space Hamiltonian
+e_tot = ham.kernel()                           # FCI in the active space
+h1, e_core = ham.get_h1eff()
+h2 = ham.get_h2eff()
+\end{lstlisting}

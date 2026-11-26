@@ -1,0 +1,475 @@
+\chapter{Periodic Systems}
+\label{ch:periodic}
+
+The periodic code in \code{pycmf.pbc} is \textbf{experimental}. It
+reproduces the previous implementation (version 0.2) and the KMP2 code of
+\pyscf{} at the first cycle, but it has not yet been compared with published
+numbers. Every class of the sub-package emits an \code{ExperimentalWarning}
+when it is instantiated.
+
+\begin{lstlisting}[style=python]
+from pycmf.pbc import KOBMP2, KO2BMP2, KOBDF, KUOBMP2
+from pycmf.pbc import remove_linear_dependency_
+\end{lstlisting}
+
+\section{k-point OBMP2: KOBMP2 and KO2BMP2}
+\label{sec:kobmp2}
+
+\subsection{Usage}
+
+\begin{lstlisting}[style=python]
+from pyscf.pbc import gto, scf
+from pycmf.pbc import KOBMP2, KO2BMP2
+
+a0 = 3.5668
+cell = gto.M(atom='C 0 0 0; C %f %f %f' % (a0/4, a0/4, a0/4),
+             a=[[0, a0/2, a0/2], [a0/2, 0, a0/2], [a0/2, a0/2, 0]],
+             basis='gth-szv', pseudo='gth-pade')
+mf = scf.KRHF(cell, cell.make_kpts([2, 2, 2])).density_fit().run(conv_tol=1e-10)
+
+mp = KOBMP2(mf).run()            # e_tot, e_corr per unit cell
+print(mp.e_tot, mp.band_gap())   # gap of the bands of the correlated Fock matrix
+
+o2 = KO2BMP2(mf, c_os=1.2).run() # c_os has no default
+KOBMP2(mf, kpt_symmetry=False)   # full k-mesh, no symmetry
+\end{lstlisting}
+
+With the diamond cell above (\code{examples/experimental/kobmp2.py}):
+
+\begin{lstlisting}[style=output]
+E(KRHF)    = -10.93208054   gap = 0.67421
+E(KOBMP2)  = -11.02688135   gap = 0.73499
+without k-point symmetry: 8 k-points instead of 3, same energy: True
+E(KO2BMP2, c_os = 1.2) = -11.00812694   gap = 0.72361
+\end{lstlisting}
+
+\subsection{Requirements on the mean field}
+
+\begin{itemize}
+  \item The reference must be a closed-shell \code{KRHF} object with integer
+        occupations. Kohn--Sham objects are rejected. The number of
+        occupied bands may depend on the $k$-point.
+  \item The system must be three-dimensional.
+  \item The correlation part uses Gaussian density fitting. If the mean field
+        uses a \code{GDF} or \code{RSGDF} object, it is reused; otherwise
+        (for example FFT-based integrals) a \code{GDF} object is built for
+        the correlation part, and the result differs from an all-FFT
+        calculation by the density-fitting error.
+  \item A mean field that uses $k$-point symmetry (\code{KPoints} objects of
+        \pyscf{}) is converted to the full mesh.
+\end{itemize}
+
+\subsection{Attributes}
+
+\begin{longtable}{@{}p{0.28\textwidth} p{0.17\textwidth} p{0.47\textwidth}@{}}
+\caption{Attributes of \code{KOBMP2}.}\label{tab:kattrs}\\
+\toprule
+Attribute & Default & Meaning \\
+\midrule
+\endfirsthead
+\toprule
+Attribute & Default & Meaning \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\code{conv_tol} & \code{1e-8} & convergence of the energy per cell \\
+\code{conv_tol_grad} & $\sqrt{\text{\code{conv_tol}}}$ & convergence of the occupied--virtual block of $\fbar$ \\
+\code{max_cycle} & \code{100} & maximum number of cycles \\
+\code{diis}, \code{diis_space}, \code{diis_start_cycle} & \code{True, 8, 1} & DIIS on the Fock matrices of the irreducible $k$-points \\
+\code{bch_order} & \code{2} & 1: half-weighted first commutator \\
+\code{c_os}, \code{c_ss} & \code{1, 1} & amplitude scaling; \code{KO2BMP2} sets \code{c_ss = 0} \\
+\code{level_shift} & \code{0} & shift of the energy denominators \\
+\code{frozen} & \code{None} & number of lowest bands, or list of band indices, without amplitudes \\
+\code{kpt_symmetry} & \code{True} & \code{True}: space group and time reversal; \code{'time_reversal'}; \code{False} \\
+\code{with_df} & from \code{mf} & GDF or RSGDF object; \code{mp.density_fit(auxbasis=...)} builds another one \\
+\code{max_memory} & from \code{mf} & decides whether three-index integrals stay in memory \\
+\code{direct_exchange} & \code{True} & take the HF exchange matrices from the pass over the integrals that builds the amplitudes \\
+\code{single_precision} & \code{False} & store the occupied--virtual three-index tensors in single precision \\
+\end{longtable}
+
+\code{frozen} and \code{kpt_symmetry} can also be given to the constructor,
+\code{KOBMP2(mf, frozen=None, kpt_symmetry=None)}. Frozen orbitals are
+excluded from the amplitudes at every $k$-point but are still relaxed by the
+correlated Fock operator. The frozen set must not cut a degenerate level; in
+diamond the two lowest valence bands are degenerate at X, so \code{frozen=1}
+is not valid there (a warning is issued).
+
+\code{direct_exchange} gives identical energies and saves one pass over the
+integral file per cycle; it applies to a plain \code{KRHF} with GDF and
+without MPI. \code{single_precision} halves the memory of the stored tensors;
+the arithmetic stays in double precision, and the energy changes by less than
+$10^{-9}$~Hartree for diamond gth-dzvp $3\times3\times3$.
+
+The names of version 0.2 are kept as aliases: \code{niter}
+(\code{max_cycle}), \code{thresh} (\code{conv_tol}), \code{shift}
+(\code{level_shift}) and \code{ene_tot} (\code{e_tot}).
+
+\subsection{Results and methods}
+
+After \code{kernel()}: \code{converged}, \code{e_tot}, \code{e_corr}
+(relative to KRHF), \code{e_ref} (HF energy of the OBMP2 determinant), and
+\code{mo_energy}, \code{mo_coeff} and \code{mo_occ} for all $k$-points of the
+mesh (lists over $k$-points, occupied orbitals first). \code{fock_hf} holds
+the HF Fock matrices in the basis of the final orbitals.
+
+\begin{longtable}{@{}p{0.42\textwidth} p{0.52\textwidth}@{}}
+\toprule
+Method & Returns \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\code{get_fock()} & correlated Fock matrices (AO basis) at all $k$-points \\
+\code{ip_koopmans()}, \code{ea_koopmans()} & minus the valence band maximum and minus the conduction band minimum on the mesh \\
+\code{band_gap()} & gap of the eigenvalues of $\fbar$ on the mesh \\
+\code{init_from_scf()} & takes the orbitals of the mean field without running OBMP2 (for conventional second-order quasiparticle energies) \\
+\code{ipea(nvir=4, kpts_index=None)} & second-order IP/EA corrections; returns the quasiparticle gap \\
+\code{self_energy(nvir=2, ...)} & tabulated second-order self-energy of the band edges \\
+\code{quasiparticle_gap(scheme, reference)} & (direct gap at the first $k$-point, smallest gap on the mesh) \\
+\code{peom_mp2(kpt_v=0, kpts_c=None)} & band edges and gaps from partitioned EOM-MP2 \\
+\code{downfold(ncas, nelecas, cas_list=None)} & \code{KOBDF} object \\
+\code{density_fit(auxbasis=None, with_df=None)} & sets another density-fitting object \\
+\end{longtable}
+
+\subsection{Restart}
+
+To restart from given orbitals (for example a converged calculation with other
+scaling factors), set \code{mp.mo_coeff}, \code{mp.mo_energy} and
+\code{mp.mo_occ} (lists over the $k$-points of the mesh) before calling
+\code{kernel()}.
+
+\section{Algorithm}
+\label{sec:kpt-algorithm}
+
+\paragraph{Three-index integrals.} All integrals are products of GDF tensors,
+\[
+  (ia|jb) = \sum_Q L^Q_{ia}(k_i,k_a)\,L^Q_{jb}(k_j,k_b).
+\]
+The
+occupied--virtual tensors (\emph{rows}, one per $k$-point) are transformed
+once per cycle and kept in memory, or in a temporary HDF5 file when they need
+more than half of \code{max_memory}. The AO tensors are cached between cycles
+as far as the remaining memory allows (up to 80\,\% of \code{max_memory} in
+total).
+
+\paragraph{No integral with a general index.} The terms
+$\sum \bar t_{iajb}(ia|pb)$ and $\sum \bar t_{iajb}(ia|jp)$ are evaluated
+through the intermediate
+\begin{equation}
+  N^Q_{jb}(k_b) = \sum_{k_i}\sum_{ia} L^Q_{ia}(k_i,k_a)\,\bar t_{iajb},
+\end{equation}
+accumulated over $k_i$ and contracted once per pair $(k_j,k_b)$ with
+$L^Q_{pb}$ and $L^Q_{jp}$, which are built on the fly.
+
+\paragraph{Memory.} Nothing of size $\Nk^2 o^2 v^2$ is stored; the amplitudes
+exist for one $k$-point quadruple at a time.
+
+\paragraph{Symmetry.} Every term of the potential is written with its free
+indices on $k_j$ (\emph{$j$ terms}) or on $k_b$ (\emph{$b$ terms}), using
+$t_{iajb}=t_{jbia}$. $k_j$ then runs over the irreducible $k$-points only:
+the $j$ terms are complete, and the $b$ terms are completed by the group
+average $v = |G|^{-1}\sum_g g^{-1} P g$ of the partial sum $P$, with the
+orbital rotations of \code{pyscf.pbc.symm}. The orbitals are kept at the
+irreducible $k$-points and expanded in a symmetry-consistent gauge in every
+cycle. If the mean-field solution does not have the symmetry of the mesh, the
+full mesh is used. Only symmorphic operations are used (the default of
+\pyscf{}).
+
+\paragraph{Self-consistency.} The loop is \code{pycmf.core.scf_loop} with the
+irreducible $k$-points as channels: DIIS with the commutator $[F,D]$,
+convergence on $\Delta E$ and on the occupied--virtual block of $\fbar$, and
+diagonalisation in the space of the current orbitals, so that orbitals
+removed because of linear dependencies stay removed.
+
+\section{Resources and performance}
+\label{sec:kpt-resources}
+
+\paragraph{Disk.} The three-index file of \pyscf{} holds all pairs of
+$k$-points. For diamond gth-dzvp it takes 3.9~GB at $4\times4\times4$ and
+14.8~GB at $5\times5\times5$, and \pyscf{} needs about as much again for a
+temporary file while it is built. Set \code{mf.with_df._cderi_to_save} to
+keep the file and \code{mf.with_df._cderi} to reuse it in a later run.
+
+\paragraph{Memory.} The reading of the AO three-index integrals disappears
+when \code{max_memory} is large enough to keep all AO tensors in memory (7.4~GB
+for diamond gth-dzvp $4\times4\times4$; the default of 4000~MB holds a third of
+them).
+
+\paragraph{Timings.} Table~\ref{tab:ktimings} gives the time per
+self-consistent cycle for diamond (two atoms per cell, GTH pseudopotential,
+GDF, two threads of a shared virtual machine; timings fluctuate by about
+$\pm20$\,\%). The script \code{benchmarks/kpoints_timing.py} reproduces such
+measurements on other hardware.
+
+\begin{table}[!htb]
+\centering
+\small
+\caption{Time per KOBMP2 cycle for diamond, including the HF Fock build.}
+\label{tab:ktimings}
+\begin{tabular}{@{}l c r r r r@{}}
+\toprule
+Basis, mesh & $k$-points (irred.) & 0.2 & 1.0 full & 1.0 symm. & Memory \\
+\midrule
+gth-szv, $2^3$  & 8 (3)  & 4.2 s & 0.30 s & 0.17 s & 0.2 GB \\
+gth-szv, $3^3$  & 27 (4) & 149 s & 3.7 s  & 2.1 s  & 0.3 GB \\
+gth-dzvp, $2^3$ & 8 (3)  & 11 s  & 1.1 s  & 0.8 s  & 0.3 GB \\
+gth-szv, $4^3$  & 64 (8) & $\approx$36 min & 33 s & 11.5 s & 0.9 GB \\
+gth-dzvp, $3^3$ & 27 (4) & $\approx$7 min  & 27 s & 7.5 s  & 1.7 GB \\
+gth-dzvp, $4^3$ & 64 (8) & $\approx$94 min & --   & 88 s   & 3.5 GB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The values for version 0.2 have its debugging overhead removed; values marked
+$\approx$ are extrapolated with $\Nk^3$. With DIIS, five to seven cycles bring
+$|\Delta E|$ below $10^{-8}$~Hartree from HF orbitals; without DIIS seven to
+thirteen.
+
+\section{Nearly linearly dependent basis sets}
+\label{sec:lindep}
+
+The OBMP2 iterations are less robust than Hartree--Fock when the Bloch basis
+is nearly linearly dependent. For diamond with gth-tzvp \pyscf{} removes two
+to four functions per $k$-point, but overlap eigenvalues below $10^{-4}$
+remain, and with them KOBMP2 does not converge. The function
+\code{remove_linear_dependency_(mf, threshold=1e-4)}, called before
+\code{mf.kernel()}, makes the mean field work in the space of the overlap
+eigenvectors above the threshold:
+
+\begin{lstlisting}[style=python]
+from pycmf.pbc import KOBMP2, remove_linear_dependency_
+mf = scf.KRHF(cell, kpts).density_fit()
+remove_linear_dependency_(mf, 1e-4)
+mf.kernel()
+mp = KOBMP2(mf).run()
+\end{lstlisting}
+
+KOBMP2 keeps that orbital space and converges in five to six cycles, at a
+cost of about $5\times10^{-5}$~Hartree in the HF energy. The number of
+orbitals then depends on the $k$-point, the mean field is no longer exactly
+symmetric, and KOBMP2 falls back to the full mesh.
+
+\section{MPI}
+\label{sec:kpt-mpi}
+
+With \code{mpi4py} the loop over $k$-points of the correlation potential is
+distributed. The same script runs on every process; rank 0 does the
+Hartree--Fock part and broadcasts it, and the partial results are summed with
+\code{allreduce}. Output is written by rank 0 only.
+
+\begin{lstlisting}[style=shell]
+$ OMP_NUM_THREADS=1 mpiexec -n 4 python kobmp2_mpi.py
+\end{lstlisting}
+
+See \code{examples/experimental/kobmp2_mpi.py}. Processes times threads must
+not exceed the number of cores. For the small test case BN $3\times3\times3$
+gth-szv, two processes reduce three cycles from 10.5~s to 8.2~s with symmetry;
+the serial parts (HF build, reading of the integrals) limit the gain for
+small cells.
+
+\section{Band gaps and quasiparticle energies}
+\label{sec:qp}
+
+The eigenvalues of the correlated Fock matrix are not removal and addition
+energies, so \code{band_gap()} is not a quasiparticle gap. Three levels of
+theory for the band edges are built on a KOBMP2 calculation.
+
+\subsection{Static correction: IPEA-KOBMP2}
+
+\code{mp.ipea(nvir=4)} adds the second-order corrections
+\begin{equation}
+  \mathrm{IP}(h,k) = -\varepsilon(h,k) + 2\sum \bar t_{iajh}\,(ia|jh),\qquad
+  \mathrm{EA}(l,k) = -\varepsilon(l,k) - 2\sum \bar t_{ialb}\,(ia|lb)
+\end{equation}
+to the converged eigenvalues (module \code{pbc/kipea.py}), stores
+\code{mp.ip} and \code{mp.ea} for all $k$-points and returns the
+quasiparticle gap $\min\mathrm{IP}-\max\mathrm{EA}$. The amplitudes carry
+the same \code{c_os}, \code{c_ss} scaling as the potential. The corrections
+are static and evaluated once; only the band edges are meaningful, because
+the denominators can vanish for bands away from the gap.
+
+\subsection{Second-order self-energy}
+
+\code{pbc/kqp.py} tabulates the two parts of the diagonal second-order
+self-energy on a frequency grid around each band energy,
+\begin{equation}
+  A_p(\omega) = \sum_{iab} \frac{W}{\omega + \varepsilon_i - \varepsilon_a - \varepsilon_b}
+  \quad(\text{2p1h}),\qquad
+  B_p(\omega) = \sum_{iaj} \frac{W}{\omega + \varepsilon_a - \varepsilon_i - \varepsilon_j}
+  \quad(\text{2h1p}).
+\end{equation}
+With HF orbitals the diagonal of the OBMP2 potential is exactly one of them:
+$v_{hh}=A_h(\varepsilon_h)$ for occupied and $v_{ll}=B_l(\varepsilon_l)$ for
+virtual bands. The eigenvalues of $\fbar$ therefore contain the half of the
+static self-energy that opens the gap ($\Sigma_{\mathrm{in}}$), and the IPEA
+correction is the other half ($\Sigma_{\mathrm{out}}$). Nothing is counted
+twice.
+
+\begin{lstlisting}[style=python]
+mp.kernel()
+mp.self_energy(nvir=1, nocc=1)          # band edges only
+direct, smallest = mp.quasiparticle_gap('dynamic')
+\end{lstlisting}
+
+\begin{table}[!htb]
+\centering
+\small
+\caption{Quasiparticle schemes (\code{reference='obmp2'}).}
+\begin{tabular}{@{}l l@{}}
+\toprule
+Scheme & Quasiparticle energy \\
+\midrule
+\code{'static'}  & $\varepsilon_p + \Sigma_{\mathrm{out}}(\varepsilon_p)$; identical to \code{mp.ipea()} \\
+\code{'linear'}  & $\varepsilon_p + Z\,\Sigma_{\mathrm{out}}(\varepsilon_p)$, $Z = 1/(1 - A' - B')$ \\
+\code{'dynamic'} & root of $\omega = \varepsilon_p + [\Sigma_{\mathrm{in}}(\omega) - \Sigma_{\mathrm{in}}(\varepsilon_p)] + \Sigma_{\mathrm{out}}(\omega)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+With \code{reference='hf'} together with \code{KOBMP2(mf).init_from_scf()}
+the conventional second-order quasiparticle energies on Hartree--Fock are
+obtained, $\varepsilon_p + A + B$.
+
+Arguments of \code{self_energy}: \code{nvir} and \code{nocc} are the numbers
+of lowest virtual and highest occupied bands that are treated
+(\code{nocc=1, nvir=1} is enough for the gap); \code{kpts_index} selects
+$k$-points (default: the irreducible ones); \code{grid} gives the frequency
+offsets (default 41 points within $\pm0.4$~Hartree or 1.4 times the gap);
+\code{scaling} is \code{'linear'} or \code{'hylleraas'}.
+
+\paragraph{Spin-component scaling.} The amplitudes enter the potential
+linearly with the factor $c$ and quadratically with $c^2$, so the half inside
+the eigenvalues carries $2c-c^2$ per spin component, whereas the IPEA formula
+multiplies the other half by $c$ itself. \code{self_energy(scaling='hylleraas')}
+evaluates the self-energy with $2c-c^2$, so that both halves are weighted
+alike; the default \code{'linear'} reproduces the IPEA numbers. For
+$c_{\mathrm{OS}}=c_{\mathrm{SS}}=1$ there is no difference.
+
+The lower-level functions are available directly:
+\code{kqp.self_energy(mp, ...)}, \code{kqp.quasiparticle(se, scheme,
+reference)}, \code{kqp.band_edges(se, e_qp)} and \code{kqp.gaps(se, e_qp)}.
+
+\subsection{Partitioned EOM-MP2}
+
+\code{pbc/kpeom.py} computes the band edges with partitioned EOM-MP2: the
+eigenvalues of $e^{-T_2}\hat He^{T_2}$ in the space of 1h and 2h1p (1p and
+2p1h) configurations, with the doubles--doubles block replaced by
+orbital-energy differences. Compared with the second-order self-energy, one of
+the two integrals of every term is dressed by the amplitudes, which adds the
+leading ring (screening), ladder and exchange terms of third order. The method
+has no adjustable parameter.
+
+\begin{lstlisting}[style=python]
+mp = KOBMP2(mf).run()                 # or KOBMP2(mf).init_from_scf()
+res = mp.peom_mp2(kpt_v=0, kpts_c=[0, kc])
+res['ip'], res['ea'][kc], res['gap'][kc]     # Hartree
+\end{lstlisting}
+
+Orbitals and orbital energies are those of the KOBMP2 object; the singles
+block and the couplings use the HF Fock matrix in that basis. Only the target
+$k$-point is an external index, so no array with three $k$-point indices is
+stored. With \code{symmetry=True} (default) the singles space is the
+degenerate level of the band edge; the neglected coupling to the other bands
+of the $k$-point changes the electron affinity of diamond by 0.01--0.03~eV.
+The IP and EA agree with the EOM-KCCSD code of \pyscf{} (with $t_1=0$,
+MP2-like $t_2$ and the same doubles--doubles block) to $10^{-9}$~Hartree.
+
+\subsection{Comparing gaps}
+
+Band gaps with $k$-point sampling depend strongly on the mesh and on the
+treatment of the exchange divergence (\code{exxdiv} of the mean field). A
+value on a single mesh is not a result. Series with \code{exxdiv=None} and
+\code{exxdiv='ewald'} must be extrapolated, for example with
+$a + bN_k^{-1/3} + cN_k^{-2/3}$, before they can be compared with experiment.
+The script \code{benchmarks/diamond_gaps.py} computes the gaps of diamond for
+HF and the variants above on one mesh.
+
+\section{k-point downfolding: KOBDF}
+\label{sec:kobdf}
+
+\code{KOBDF(mp, ncas, nelecas, cas_list=None)}, or \code{mp.downfold(ncas,
+nelecas)}, builds an active-space Hamiltonian from a \code{KOBMP2} object,
+per unit cell,
+\begin{equation}
+  \hat H_{\mathrm{act}} = E_{\mathrm{core}}
+  + \frac1{\Nk}\sum_{k}\sum_{tu}\bar h_{tu}(k)\,\hat a^\dagger_{tk}\hat a_{uk}
+  + \frac1{2\Nk}\sum_{k_1k_2k_3}\sum_{tuvw}
+  h^{(2)}_{tuvw}(k_1,k_2,k_3)\,
+  \hat a^\dagger_{tk_1}\hat a^\dagger_{vk_3}\hat a_{wk_4}\hat a_{uk_2},
+\end{equation}
+with $\bar h(k)=h(k)+v^{\mathrm{HF}}_{\mathrm{core}}(k)+v[T](k)-v[T_{\mathrm{act}}](k)$
+and $h^{(2)}=(tk_1,uk_2|vk_3,wk_4)/\Nk$. The cost is one KOBMP2 cycle plus
+one cycle restricted to the active bands. With
+\code{KOBMP2(mf).init_from_scf().downfold(...)} the downfolding is done at
+second order on HF orbitals.
+
+\begin{lstlisting}[style=python]
+mp = KOBMP2(mf).run()
+ham = mp.downfold(ncas=8, nelecas=8)
+h1, e_core = ham.get_h1eff()          # (nkpts, ncas, ncas), constant per cell
+ham.get_cderi(k1, k2)                 # three-index integrals of the active bands
+ham.get_h2eff(k1, k2, k3)             # (t k1, u k2 | v k3, w k4) / Nk
+ham.scf(); ham.mo_energy; ham.band_gap()      # mean field of the model
+ham.self_energy(nocc=1, nvir=1)
+ham.quasiparticle_gap('dynamic')      # second-order gap of the model
+h1s, h2s, e0, nelec = ham.supercell() # real Hamiltonian of the supercell
+ham.as_scf()                          # PySCF RHF object (CCSD, CASCI, DMRG)
+ham.kernel()                          # FCI of the supercell, energy per cell
+\end{lstlisting}
+
+\begin{description}[style=nextline,leftmargin=3.2cm,labelwidth=3cm]
+  \item[\code{ncas}] number of active bands per $k$-point.
+  \item[\code{nelecas}] number of active electrons per unit cell (even).
+  \item[\code{cas_list}] 0-based band indices, the same at every $k$-point.
+        By default the \code{ncas} bands around the Fermi level.
+  \item[\code{conv_tol}, \code{max_cycle}] convergence of \code{scf()}
+        (defaults $10^{-10}$ and 50).
+  \item[\code{fcisolver}] solver of \code{kernel()}.
+\end{description}
+
+\paragraph{Mean field and quasiparticles of the model.} \code{scf()} solves
+Hartree--Fock for $\hat H_{\mathrm{act}}$; its bands contain the correlation
+with the orbitals outside the active space statically, through
+$v^{\mathrm{ext}}$. \code{self_energy()} adds the correlation within the
+active space with its frequency dependence, and
+\code{quasiparticle(scheme)} solves for the bands as in \code{kqp}.
+
+\paragraph{Many-body solvers.} \code{supercell()} returns real integrals of
+the Born--von K\'arm\'an supercell of $\Nk$ cells ($\Nk n_{\mathrm{cas}}$
+orbitals). The real orbitals are obtained from time reversal and are not
+localized. \code{as_scf()} wraps the integrals in a \pyscf{} \code{RHF}
+object; its energies refer to the supercell. \code{kernel()} runs FCI and is
+only feasible for small models.
+
+\paragraph{Sum rule.} \code{energy_tot()} over the reference determinant
+equals $E_{\mathrm{KOBMP2}}-E_c[T_{\mathrm{act}}]$; the second term is stored
+as \code{e_corr_act}.
+
+\paragraph{Madelung term.} With \code{exxdiv='ewald'} the constant contains
+$-\xi N_{\mathrm{act}}/2$ for the active electrons, and \code{get_fock}
+shifts the occupied levels by $-\xi$, as \pyscf{} does for KRHF; the
+integrals do not contain the term.
+
+From \code{examples/experimental/kobdf.py} (diamond, gth-szv,
+$2\times2\times1$, \code{exxdiv=None}, six active bands):
+
+\begin{lstlisting}[style=output]
+E(KRHF) = -9.26630050   E(KOBMP2) = -9.41369394   gap of the KOBMP2 bands = 0.37745
+h1eff: (4, 6, 6)   E_core = -12.34762518
+sum rule: <H_act> - [E(KOBMP2) - E_c(T_act)] = 8.2e-13
+E(HF of H_act) = -9.34556626   gap = 0.32196
+second-order gap of H_act, static  = 0.30080
+second-order gap of H_act, linear  = 0.30205
+second-order gap of H_act, dynamic = 0.30205
+supercell: 24 orbitals, 24 electrons; E(HF) = -9.34556626, E(CCSD) = -9.39969464 per cell
+\end{lstlisting}
+
+\section{Unrestricted k-point OBMP2: KUOBMP2}
+
+\code{KUOBMP2} is the four-index code of version 0.2, moved into the package
+largely unchanged; its interface is that of version 0.2 (\code{thresh},
+\code{niter}, \code{shift}). For a closed-shell cell it does not reproduce
+KOBMP2 (see Section~\ref{sec:known-issues}), it has the cost problems of the
+old code, and its ionization analysis uses hard-coded band indices. It should
+be used only for comparison with old results.
