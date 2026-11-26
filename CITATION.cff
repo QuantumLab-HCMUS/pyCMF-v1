@@ -3,7 +3,7 @@ message: "If you use pyCMF, please cite the software and the papers of the metho
 title: "pyCMF: correlated mean-field methods built on PySCF"
 version: 1.0.0
 license: Apache-2.0
-repository-code: "https://github.com/QuantumLab-HCMUS/pyCMF"
+repository-code: "https://github.com/QuantumLab-HCMUS/pyCMF-v1"
 authors:
   - name: "QuantumLab HCMUS"
     affiliation: "University of Science, Vietnam National University Ho Chi Minh City"
