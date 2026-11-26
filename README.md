@@ -103,7 +103,6 @@ tests/         pytest suite
 examples/      runnable scripts with reference output
 benchmarks/    timing script; legacy inputs of version 0.2
 docs/          theory, usage, validation, status, migration from version 0.2
-paper/         material for the Computer Physics Communications submission
 ```
 
 ## Development
