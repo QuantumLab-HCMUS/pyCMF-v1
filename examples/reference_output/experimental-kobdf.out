@@ -1,0 +1,9 @@
+E(KRHF) = -9.26630050   E(KOBMP2) = -9.41369394   gap of the KOBMP2 bands = 0.37745
+h1eff: (4, 6, 6)   E_core = -12.34762518
+sum rule: <H_act> - [E(KOBMP2) - E_c(T_act)] = 8.2e-13
+E(HF of H_act) = -9.34556626   gap = 0.32196
+second-order gap of H_act, static  = 0.30080
+second-order gap of H_act, linear  = 0.30205
+second-order gap of H_act, dynamic = 0.30205
+h2eff block (k1, k2, k3) = (1, 2, 3): norm 0.324085
+supercell: 24 orbitals, 24 electrons; E(HF) = -9.34556626, E(CCSD) = -9.39969464 per cell

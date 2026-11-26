@@ -1,0 +1,4 @@
+E(KRHF)    = -10.93208054   gap = 0.67421
+E(KOBMP2)  = -11.02688135   gap = 0.73499
+without k-point symmetry: 8 k-points instead of 3, same energy: True
+E(KO2BMP2, c_os = 1.2) = -11.00812694   gap = 0.72361

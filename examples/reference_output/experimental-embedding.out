@@ -1,0 +1,6 @@
+E(PBE, full system) = -152.66298958
+B2PLYP-OBDH in pbe, CL truncation: False  E = -152.67165077   virtuals kept: 43
+B2PLYP-OBDH in pbe, CL truncation: True   E = -152.67164532   virtuals kept: 24
+dipole moment of the full system (D) = -0.0707
+OBMP2 in PBE                             E = -152.56028811
+PBE in PBE - E(PBE)                        = 9.6e-10

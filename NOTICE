@@ -1,0 +1,7 @@
+pyCMF
+Copyright 2021-2026 QuantumLab HCMUS, University of Science, Vietnam National
+University Ho Chi Minh City, and the pyCMF developers.
+
+This product is built on PySCF (https://pyscf.org), Copyright 2014-2025 The
+PySCF Developers, licensed under the Apache License, Version 2.0.  The modules
+under src/pycmf/pbc/ contain code adapted from pyscf.pbc.mp.

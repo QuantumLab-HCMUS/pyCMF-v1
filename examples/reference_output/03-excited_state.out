@@ -1,0 +1,5 @@
+method             omega (eV)    <S^2>
+MOM-HF                  6.209    1.008
+OBMP2                   7.588    1.006   converged: True
+O2BMP2 (1.2)            7.193    1.006   converged: True
+The excited determinant is a 50:50 mixture of singlet and triplet (<S^2> ~ 1).

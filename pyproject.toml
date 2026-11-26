@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycmf"
+dynamic = ["version"]
+description = "Correlated mean-field methods on top of PySCF: OBMP2, O2BMP2, one-body double hybrids and one-body downfolding"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "Apache-2.0"}
+authors = [
+  {name = "QuantumLab HCMUS"}
+]
+keywords = ["quantum chemistry", "electron correlation", "perturbation theory", "MP2", "PySCF"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.22",
+    "scipy>=1.8",
+    "pyscf>=2.10.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+mpi = ["mpi4py>=3.1"]
+dev = ["pytest>=7", "ruff>=0.5", "pre-commit>=3.6.0"]
+
+[project.urls]
+Homepage = "https://github.com/QuantumLab-HCMUS/pyCMF"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "pycmf.__version__"}
+
+[tool.ruff]
+line-length = 110
+exclude = ["benchmarks", "src/pycmf/pbc"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E731", "E741"]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.coverage.run]
+branch = true
+source = ["src/pycmf"]
+omit = ["src/pycmf/pbc/*"]

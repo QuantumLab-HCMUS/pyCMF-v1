@@ -1,0 +1,9 @@
+functional          : 0.53*HF + 0.47*B88, 0.73*LYP  + 0.27 E_c(OBMP2)
+E(OBDH)             = -76.3425040639   converged: True
+E(O2BDH, c_os=1.2)  = -76.3231558818
+dipole moment (D)   = 1.9442
+B2GP-PLYP  a_x = 0.6500  a_c = 0.3600  E = -76.3273800422
+PBE0-DH    a_x = 0.5000  a_c = 0.1250  E = -76.3282840566
+PBE-QIDH   a_x = 0.6934  a_c = 0.3333  E = -76.3072423903
+custom  0.5*HF + 0.5*PBE, 0.75*PBE : E = -76.3117583899
+OH: E(UOBDH) = -75.6617095329   <S^2> = 0.7523

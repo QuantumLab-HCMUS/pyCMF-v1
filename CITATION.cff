@@ -1,0 +1,69 @@
+cff-version: 1.2.0
+message: "If you use pyCMF, please cite the software and the papers of the methods you used."
+title: "pyCMF: correlated mean-field methods built on PySCF"
+version: 1.0.0
+license: Apache-2.0
+repository-code: "https://github.com/QuantumLab-HCMUS/pyCMF"
+authors:
+  - name: "QuantumLab HCMUS"
+    affiliation: "University of Science, Vietnam National University Ho Chi Minh City"
+keywords:
+  - quantum chemistry
+  - second-order perturbation theory
+  - self-consistency
+  - double-hybrid density functional
+  - downfolding
+references:
+  - type: article
+    title: "Correlated one-body potential from second-order Møller–Plesset perturbation theory: Alternative to orbital-optimized MP2 method"
+    authors:
+      - {family-names: Lan, given-names: "Tran Nguyen"}
+      - {family-names: Yanai, given-names: Takeshi}
+    journal: "The Journal of Chemical Physics"
+    volume: 138
+    start: 224108
+    year: 2013
+  - type: article
+    title: "Improving perturbation theory for open-shell molecules via self-consistency"
+    authors:
+      - {family-names: Tran, given-names: "Lan Nguyen"}
+    journal: "The Journal of Physical Chemistry A"
+    volume: 125
+    start: 9242
+    year: 2021
+  - type: article
+    title: "Can second-order perturbation theory accurately predict electron density of open-shell molecules? The importance of self-consistency"
+    authors:
+      - {family-names: Tran, given-names: "Lan Nguyen"}
+    journal: "Physical Chemistry Chemical Physics"
+    volume: 24
+    start: 19393
+    year: 2022
+  - type: article
+    title: "Correlated reference-assisted variational quantum eigensolver"
+    authors:
+      - {family-names: Le, given-names: "N. T."}
+      - {family-names: Tran, given-names: "Lan Nguyen"}
+    journal: "The Journal of Physical Chemistry A"
+    volume: 127
+    start: 5222
+    year: 2023
+  - type: article
+    title: "Reaching high accuracy for energetic properties at second-order perturbation cost by merging self-consistency and spin-opposite scaling"
+    authors:
+      - {family-names: Tran, given-names: "Nhan Tri"}
+      - {family-names: Nguyen, given-names: "H. T."}
+      - {family-names: Tran, given-names: "Lan Nguyen"}
+    journal: "The Journal of Physical Chemistry A"
+    volume: 128
+    start: 1543
+    year: 2024
+  - type: article
+    title: "Attaining high accuracy for charge-transfer excitations in non-covalent complexes at second-order perturbation cost: The importance of state-specific self-consistency"
+    authors:
+      - {family-names: Tran, given-names: "Nhan Tri"}
+      - {family-names: Tran, given-names: "Lan Nguyen"}
+    journal: "The Journal of Chemical Physics"
+    volume: 162
+    start: 104109
+    year: 2025
