@@ -21,6 +21,8 @@ __version__ = '1.0.0'
 from pycmf import properties
 from pycmf.mol.obmp2 import OBMP2, O2BMP2, ROBMP2, UOBMP2
 from pycmf.mol.obdh import OBDH, O2BDH, ROBDH, UOBDH
+from pycmf.mol.oodh import OODH, UOODH
 from pycmf.downfold.obdf import OBDF
 
-__all__ = ['OBMP2', 'O2BMP2', 'ROBMP2', 'UOBMP2', 'OBDH', 'O2BDH', 'ROBDH', 'UOBDH', 'OBDF', 'properties']
+__all__ = ['OBMP2', 'O2BMP2', 'ROBMP2', 'UOBMP2', 'OBDH', 'O2BDH', 'ROBDH', 'UOBDH', 'OODH', 'UOODH',
+           'OBDF', 'properties']

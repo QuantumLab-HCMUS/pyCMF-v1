@@ -14,7 +14,9 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STABLE = ['01-obmp2', '02-o2bmp2', '03-excited_state', '04-obdf', '05-obdh', '06-properties']
-EXPERIMENTAL = ['experimental/ro_obmp2', 'experimental/embedding', 'experimental/kobmp2', 'experimental/kobdf']
+EXPERIMENTAL = ['experimental/ro_obmp2', 'experimental/embedding', 'experimental/kobmp2',
+                'experimental/kobdf', 'experimental/transition_dipole', 'experimental/noci',
+                'experimental/oodh']
 NUMBER = re.compile(r'-?\d+\.\d+(?:[eE][-+]?\d+)?')
 
 

@@ -54,6 +54,28 @@ B2T-PLYP, B2GP-PLYP, B2K-PLYP, PBE0-DH, PBE-QIDH, PBE0-2
 (libxc). `m.get_xc()` returns the functional string of the Kohn–Sham part,
 `m.ax` and `m.ac` the two weights.
 
+## Orbital-optimized double hybrids (experimental)
+
+```python
+m = pycmf.OODH(mol, xc='B2PLYP').run()      # Mole: KS of the hybrid part first
+m.e_dh, m.e_tot                             # usual double hybrid, OO-DH
+pycmf.OODH(mf, xc='PBE0-DH')                # any HF/KS object as the start
+pycmf.OODH(mf, xc='HF', ac=1.)              # OO-MP2
+pycmf.OODH(mol, c_os=1.3, c_ss=0.)          # spin-component-scaled
+m.make_rdm1(correlated=True)                # relaxed density D + a_c gamma
+```
+
+OODH minimizes $E_{KS}[\text{hybrid part}] + a_c E_2$ over the orbitals,
+with $E_2$ the MP2 energy on the semicanonical Kohn–Sham orbitals (OO-MP2
+Lagrangian, as OO-RI-B2PLYP of ORCA). It differs from OBDH: OBDH adds the
+OBMP2 correlation potential to the Kohn–Sham Fock matrix and is not
+variational, OODH uses the exact orbital gradient, including the response of
+the Kohn–Sham potential (Coulomb, exchange, XC kernel) to the MP2 density.
+The calculation is unrestricted; functionals are chosen as for OBDH;
+`occupation='imom'` works as for the other methods. Because the energy is
+stationary in the orbitals, `make_rdm1(correlated=True)` is the relaxed
+density and the dipole is the derivative of the energy.
+
 ## Density fitting
 
 - `mf = scf.RHF(mol).density_fit()` → pyCMF reuses `mf.with_df` (JK-fit basis)
@@ -112,9 +134,39 @@ from pycmf.embed import EmbeddedOBDH, EmbeddedOBMP2
 from pycmf.pbc import KOBMP2, KO2BMP2          # k-point sampling, closed shell
 from pycmf.pbc import KOBDF                    # k-point downfolding
 from pycmf.pbc import KUOBMP2                  # code of version 0.2
+from pycmf.properties import transition        # transition dipoles between two states
+from pycmf.mol import excited, noci            # MOM starting points, NOCI
 ```
 
 See [status.md](status.md) before using them.
+
+### Transition dipole moments and NOCI
+
+```python
+from pycmf.mol import excited, noci
+from pycmf.properties import transition
+
+mf_es = excited.mom_excitation(mf, hole=4, particle=5, spin=1)   # MOM-UHF, indices of mf
+gs = pycmf.OBMP2(mf).run()
+es = pycmf.OBMP2(mf_es, occupation='imom').run()
+res = transition.transition_dipole(gs, es, singlet=True)
+res.e_exc, res.dipole, res.f, res.overlap, res.spin_square
+
+channels = excited.select_channels(mf, 10)                   # lowest HF gaps
+labels, states = noci.make_basis(mf, channels)               # GS + alpha and beta branch per channel
+m = noci.NOCI(states, labels)                                # hamiltonian='state_specific_fock'
+m.kernel('bare')                                             # or 'overlap_symmetric'
+m.e, m.e_exc, m.dipole, m.f, m.spin_square, m.channel_weights()
+```
+
+`transition_dipole` orthogonalizes the two determinants symmetrically before
+taking the moment. `singlet=True` multiplies it by √2. That assumes the α and β
+branches give equal moments and are orthogonal; it is not a spin projection.
+`make_basis` takes `method=functools.partial(pycmf.O2BMP2, c_os=1.2)` for
+O2BMP2. Its convergence defaults are tight (`conv_tol=1e-10`,
+`conv_tol_grad=1e-7`) because the NOCI couplings depend linearly on the
+orbital residual. The three NOCI Hamiltonians are described in the docstring of
+`pycmf.mol.noci` and in [status.md](status.md).
 
 ### Embedding
 

@@ -14,6 +14,6 @@
 
 '''First-order properties of the one-body correlated methods.'''
 
-from pycmf.properties import rdm, spin, hfcc
+from pycmf.properties import rdm, spin, hfcc, transition
 
-__all__ = ['rdm', 'spin', 'hfcc']
+__all__ = ['rdm', 'spin', 'hfcc', 'transition']

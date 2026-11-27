@@ -16,5 +16,6 @@
 
 from pycmf.mol.obmp2 import OBMP2, O2BMP2, ROBMP2, UOBMP2
 from pycmf.mol.obdh import OBDH, O2BDH, ROBDH, UOBDH
+from pycmf.mol.oodh import OODH, UOODH
 
-__all__ = ['OBMP2', 'O2BMP2', 'ROBMP2', 'UOBMP2', 'OBDH', 'O2BDH', 'ROBDH', 'UOBDH']
+__all__ = ['OBMP2', 'O2BMP2', 'ROBMP2', 'UOBMP2', 'OBDH', 'O2BDH', 'ROBDH', 'UOBDH', 'OODH', 'UOODH']

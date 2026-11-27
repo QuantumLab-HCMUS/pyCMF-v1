@@ -10,6 +10,22 @@ and this project adheres to Semantic Versioning.
 Rewrite of the molecular methods on a common core, prepared for publication.
 
 ### Added
+* `pycmf.OODH` (experimental): orbital-optimized double hybrids (B2PLYP, PBE0-DH, ...,
+  OO-MP2 as the limit, spin-component scaling), variational in the orbitals with the exact
+  orbital gradient; relaxed density. Replaces `oo_dh.py`, whose orbital gradient was not the
+  derivative of its energy (missing response of the Kohn-Sham potential to the MP2 density and
+  the f-gamma commutator, wrong factors in the 2-RDM terms, MP2 on non-canonical orbitals with
+  diagonal energies, DIIS set up but not used): its energy rose above the non-optimized double
+  hybrid and did not converge.
+* `pycmf.properties.transition` (experimental): transition dipole moment and oscillator
+  strength between two separately optimized determinants (generalized Slater-Condon rules,
+  symmetric orthogonalization, optional sqrt(2) singlet factor). Port of
+  `calc_ob_o2b_transition.py` of the OB-O2B-simple scripts.
+* `pycmf.mol.noci` (experimental): NOCI in a basis of state-specific OBMP2/O2BMP2
+  determinants with the bare, overlap-symmetric and state-specific-Fock Hamiltonians,
+  transition moments, <S^2> and channel weights of the roots; `pycmf.mol.excited`:
+  MOM-UHF excited starting points and channel selection. Port of `calc_noci_ob_o2b.py`
+  without the private `uobmp2_mom_conv` library.
 * `pycmf.core`: one self-consistent driver (DIIS, convergence on the energy and on the
   occupied-virtual block of the correlated Fock matrix), occupation schemes
   (Aufbau, MOM, IMOM), spin-block amplitudes.

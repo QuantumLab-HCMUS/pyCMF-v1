@@ -2,7 +2,7 @@
 
 ## What the test suite checks
 
-`pytest -m "not slow"` runs 105 tests in about two minutes; `pytest` adds nine
+`pytest -m "not slow"` runs 137 tests in a few minutes; `pytest` adds nine
 slower k-point tests (symmetry, larger meshes, MPI; about two minutes). Tolerances are 5e-9 Ha for regression values unless noted.
 
 | Property | Test | Reference |
@@ -21,7 +21,10 @@ slower k-point tests (symmetry, larger meshes, MPI; about two minutes). Toleranc
 | ⟨S²⟩ (determinant and corrected) and hyperfine couplings of OH | `test_properties.py` | version 0.2 |
 | RO-OBMP2, embedding with and without concentric localization | `test_experimental.py` | version 0.2 |
 | Embedding: all atoms in the subsystem give the high-level method (OBMP2, OBDH); DFT-in-DFT with one functional gives the Kohn–Sham energy | `test_experimental.py` | internal, `pyscf.dft` |
+| OO-DH: analytic orbital gradient = finite differences (B2PLYP, PBE0-DH open shell, OO-MP2); OO-MP2 and OO-B2PLYP against ORCA 4.1 (H₂O, NH₂); $a_c=0$ is hybrid DFT; relaxed dipole = finite field | `test_oodh.py` | ORCA 4.1.0, internal |
 | Named double hybrids are their four parameters; `'PBE0-2'` is not parsed as a difference | `test_obdh.py` | internal |
+| Transition dipole: Löwdin pair in the full CI space; HF limit −⟨i\|r\|a⟩; gs↔es symmetry; restricted = unrestricted ground state; OB-O2B-simple value (H₂O, β 4→5) | `test_transition.py` | full CI, OB-O2B-simple scripts with the 0.2 library |
+| NOCI: S, H, dipole, S² of OBMP2, MOM-UHF and unrelaxed determinants against full CI (exact and direct J/K integrals); bare diagonal = HF energy of the OBMP2 determinant; effective diagonals = OBMP2 energies; constant of the effective operator; linear dependencies; bare NOCI energies of the OB-O2B-simple scripts | `test_noci.py` | full CI, internal, OB-O2B-simple scripts with the 0.2 library |
 | k-point OBDF: constant, one-body integrals and bands of the four-index KROBDF code; molecular OBDF at the Γ point; complete and empty active space; sum rule; supercell solvers; second-order quasiparticles of a complete active space | `test_kobdf.py` | branch `thai` (67a4494), internal, `pyscf.fci`, `pyscf.cc` |
 | k-point OBMP2: cycle-by-cycle energies of version 0.2; first cycle is KMP2 (also frozen bands, scaled amplitudes); one k-point equals the molecular code; k-point symmetry, k-dependent occupations, integrals on disk, MPI | `test_kobmp2.py` | version 0.2, `pyscf.pbc.mp`, internal |
 

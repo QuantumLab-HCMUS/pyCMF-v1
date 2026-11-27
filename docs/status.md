@@ -13,10 +13,13 @@ with respect to 0.2.
 | state-specific (MOM, IMOM) | `core/occupation.py` | 0.2 energies | open-shell singlets are spin-mixed determinants |
 | OBDF | `downfold/obdf.py` | FCI and OBMP2 limits; 0.2 energies | FCIDUMP for restricted references only |
 | OBDH, O2BDH | `mol/obdh.py` | OBMP2 and hybrid-DFT limits; 0.2 energies | parameters of the published double hybrids, not re-optimised; no published benchmark |
+| OO-DH (orbital-optimized double hybrid) | `mol/oodh.py` | orbital gradient = finite differences (1e-8); ORCA 4.1 OO-RI-MP2 (6e-8 Eh) and OO-RI-B2PLYP for H₂O and NH₂ (orbital-optimization lowering to 1e-8 Eh); hybrid-DFT limit; relaxed dipole = finite field | **experimental**: unrestricted only, four-index blocks in memory (no batching), no analytic nuclear gradients, no frozen core |
 | RO-OBMP2 | `mol/roobmp2.py` | 0.2 energies to 1e-10 Ha | **experimental**: no formal derivation, no DIIS, no benchmark |
 | embedding + concentric localization | `embed/` | 0.2 energies to 1e-10 Ha; whole system = high-level method; DFT-in-DFT = Kohn–Sham | **experimental**: unrestricted formulation only; no published benchmark |
 | k-point OBMP2 and O2BMP2 (closed shell) | `pbc/kobmp2.py`, `kbch.py`, `kintegrals.py`, `ksymm.py` | previous four-index implementation, cycle by cycle, to 1e-10 Ha; KMP2 at the first cycle; molecular code at the Γ point | **experimental**: rewritten (see [kpoints.md](kpoints.md)), no published benchmark yet |
 | k-point OBMP2 (unrestricted) | `pbc/kuobmp2.py` | — | **experimental**: known inconsistency, see below |
+| transition dipole between two state-specific determinants | `properties/transition.py`, `mol/excited.py` | full-CI expansion of the two determinants (Löwdin pair, 1e-9); unrelaxed single excitation = −⟨i\|r\|a⟩; OB-O2B-simple scripts with the 0.2 library (H₂O/cc-pVDZ, 1e-7) | **experimental**: determinant-level moment, no correlated transition density; `singlet=True` is the √2 approximation |
+| NOCI of state-specific OBMP2/O2BMP2 determinants | `mol/noci.py` | S, H, dipole, S² against full CI (1e-9), also with a singular orbital overlap; OB-O2B-simple scripts with the 0.2 library (matrices 1e-13, bare NOCI energies 1e-7) | **experimental**: the effective Hamiltonians are model choices, see known issue 8 |
 | k-point OBDF | `pbc/kobdf.py` | four-index KROBDF of the group (branch `thai`, 67a4494) to 1e-8 Ha; molecular OBDF at the Γ point; complete and empty active space; sum rule | **experimental**: rewritten on the integrals of KOBMP2 (see [kpoints.md](kpoints.md)); closed shell; the Wannier90, band and DOS tools of the branch are not ported |
 
 "0.2 energies" means total energies of the previous implementation
@@ -66,6 +69,29 @@ numbers has been re-run with this version yet.
 7. **The energy is not variational**, so the error in the energy is first
    order in the residual $\bar f_{ia}$. Use a tight `conv_tol_grad` when
    energy differences below 1e-6 Ha matter.
+8. **NOCI with `hamiltonian='state_specific_fock'` does not couple the α and β
+   branches of a channel.** These two determinants differ by two spin
+   orbitals, and the averaged Fock operator is a one-body operator. Their
+   coupling is therefore only what the orbital non-orthogonality allows: the
+   pairs stay (nearly) degenerate, singlet and triplet are not separated, and
+   μ, f and ⟨S²⟩ of a degenerate pair depend on an arbitrary rotation.
+   Example: H₂O/cc-pVDZ, 4→5, gives two roots at 8.0759 eV with ⟨S²⟩ ≈ 1.
+   The `bare` and `overlap_symmetric` models keep the two-electron coupling
+   (triplet 6.72/7.73 eV, singlet 7.42/8.42 eV). The original scripts show
+   the same degeneracy.
+9. **The OB-O2B-simple scripts with the 0.2 library `uobmp2_mom_conv`.**
+   These problems were found while porting the scripts; they are absent from
+   `pycmf.properties.transition` and `pycmf.mol.noci`:
+   - The 2025 copies of the library (`pyscf-ob-mp2-dft`, `Downloads/pyscf-ob-mp2`)
+     never read `css`/`cos`, so "O2BMP2" there is OBMP2.
+   - After convergence `mo_coeff` is replaced by one more diagonalization
+     (energy order, no MOM), so `mo_occ > 0.5` can select a different
+     determinant from the optimized one. For H₂O/cc-pVDZ, channel 3→6, the
+     stored determinant has zero overlap with the optimized one while the
+     energy is right. The Fock rebuild then fails (0.40 Eh) and the bare NOCI
+     gets two spurious roots near 30 eV.
+   - Convergence on the energy alone leaves |f_ov| ≈ 1e-5. This changes the
+     NOCI couplings by about 1e-4 Eh and breaks symmetry-forbidden couplings.
 
 ## Changes with respect to 0.2
 

@@ -17,10 +17,13 @@ self-consistency at the cost of one MP2 calculation per cycle.
 | O2BMP2 | OBMP2 with scaled opposite-spin amplitudes only | `pycmf.O2BMP2` | stable |
 | OBDH | one-body double hybrid: Kohn–Sham Fock + scaled OBMP2 potential; B2PLYP and other double hybrids by name | `pycmf.OBDH` | stable |
 | O2BDH | OBDH with scaled opposite-spin amplitudes only | `pycmf.O2BDH` | stable |
+| OO-DH | orbital-optimized double hybrid: the double-hybrid energy (B2PLYP, ..., OO-MP2 as a limit) minimized over the orbitals; relaxed density | `pycmf.OODH` | experimental |
 | OBDF | one-body downfolding to an active-space Hamiltonian | `pycmf.OBDF` | stable |
 | state-specific excited states | any of the first four with `occupation='mom'` or `'imom'` | keyword | stable |
 | RO-OBMP2 | restricted open-shell OBMP2 | `pycmf.mol.roobmp2.ROOBMP2` | experimental |
 | embedding | OBMP2- and OBDH-in-DFT projection embedding (separate functionals for subsystem and environment), concentric localization | `pycmf.embed` | experimental |
+| transition dipoles | transition dipole moment and oscillator strength between state-specific ground and excited states | `pycmf.properties.transition` | experimental |
+| NOCI | non-orthogonal CI of state-specific OBMP2/O2BMP2 determinants | `pycmf.mol.noci` | experimental |
 | k-point OBMP2, O2BMP2 | periodic systems, closed shell: density fitting, k-point symmetry, MPI | `pycmf.pbc.KOBMP2`, `KO2BMP2` | experimental |
 | k-point OBDF | downfolding to active bands on the integrals of KOBMP2; mean field, second-order quasiparticles and supercell solvers of the model | `pycmf.pbc.KOBDF` | experimental |
 | k-point unrestricted OBMP2 | periodic systems (code of version 0.2) | `pycmf.pbc.KUOBMP2` | experimental |
@@ -80,7 +83,7 @@ More in [docs/usage.md](docs/usage.md) and in the scripts of
 
 ```bash
 pip install ".[test]"
-pytest -m "not slow"     # 105 tests, about two minutes on a laptop
+pytest -m "not slow"     # 137 tests, a few minutes on a laptop
 pytest                   # adds the slower k-point tests (symmetry, MPI; a few minutes)
 ```
 
@@ -151,6 +154,9 @@ A new method mostly means supplying its own `build`.
   4. correlation potential: `mol/bch.correlation_potential`, controlled by `bch_order` (1 or 2, default 2);
   5. `get_reference(...)` returns the reference Fock matrix, the reference energy and the weight of v.
 - Variants are hooks on this structure, not new modules:
+  - `mol/oodh.py` (`OODH`): orbital-optimized double hybrid. It reuses the functional handling of `mol/obdh.py`
+    and the driver of `core/scf_loop.py`, but its own `build` returns the exact orbital gradient of the
+    double-hybrid energy (Kohn–Sham response to the MP2 density included) as the ov block of fbar.
   - `mol/obdh.py` (`OBDH`, `O2BDH`): a mixin overrides `get_reference` to use a Kohn–Sham Fock matrix and scales v
     by `a_c`. Double hybrids are parsed by name (B2PLYP is the default).
   - `mol/roobmp2.py`: changes the orbital update instead.

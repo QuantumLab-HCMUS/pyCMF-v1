@@ -15,6 +15,7 @@
 | `OBMP2_downfold` / `UOBMP2_downfold` with `mo_coeff`, `fock_hf`, `tmp1`, `tmp1_bar`, `c0_tot`, `c1` copied by hand, `mcscf.sort_mo` | `pycmf.OBDF(mp, ncas, nelecas, cas_list=...)` |
 | `h1mo_act_eff`, `h2mo_act`, `ene_inact` | `get_h1eff()` → `(h1eff, e_core)`, `get_h2eff()` |
 | `caslist` counted from 1 | `cas_list` counted from 0 |
+| `oo_dh.py`: `UOODH(mf, xc='B2PLYP').kernel()`, `dh_energy(mol, xc)` | `pycmf.OODH(mol, xc='B2PLYP').run()` → `e_tot`; `e_dh` is the non-optimized double hybrid. The gradient of `oo_dh.py` was not the derivative of its energy (see CHANGELOG) |
 | `DFTOBMP2`, `OBDH_CL` with `alphaa=(ax, ac)` | `pycmf.OBDH(mf, ax=..., ac=...)` or `pycmf.OBDH(mf, xc='B2PLYP')` |
 | `OBDH_CL` / `OBMP2_CL` with `use_embed=True`, `use_cl`, `n_shells`, `xc_env`, `mu` | `pycmf.embed.EmbeddedOBDH` / `EmbeddedOBMP2`; the subsystem now has its own functional (`xc='B2PLYP'`), `xc=xc_env` gives the 0.2 numbers |
 | `make_fc(dm)` | `mp.hfcc(correlated=False)` |
@@ -24,6 +25,8 @@
 | `KUOBMP2` | `pycmf.pbc.KUOBMP2` (interface unchanged) |
 | `KROBDF` / `krobdf.OBMP2` with `nact`, `nocc_act`, `fock_hf`, `c0_tot`, `c1` copied by hand; `h1mo_act_eff`, `h2mo_act`, `ene_inact` | `mp.downfold(ncas, nelecas)` → `pycmf.pbc.KOBDF`: `get_h1eff()` → `(h1eff, e_core)`, `get_h2eff()` (same normalisation, 1/Nk) |
 | `make_fock_df(scf_active=True)`, `make_ipea()` | `ham.scf()`, `ham.self_energy()` + `ham.quasiparticle()` |
+| OB-O2B-simple `calc_ob_o2b_transition.py`: `run_mom_hf`, `initialize_obmp2`, `transition_properties`, `apply_singlet_scaling` | `pycmf.mol.excited.mom_excitation`, `pycmf.OBMP2(mf_es, occupation='imom')`, `pycmf.properties.transition.transition_dipole(gs, es, singlet=...)` |
+| OB-O2B-simple `calc_noci_ob_o2b.py`: `select_channels`, `optimize_basis`, `build_matrices`, `select_hamiltonian`, `solve_noci`, `channel_projections` | `excited.select_channels`, `noci.make_basis`, `noci.NOCI(...).build()`, `.get_hamiltonian(model)`, `.kernel(model)`, `.channel_weights()` |
 | `Supercell`, `solve_fci`, `solve_ccsd` | `ham.supercell()`, `ham.kernel()`, `ham.as_scf()` |
 
 Example, 0.2:
