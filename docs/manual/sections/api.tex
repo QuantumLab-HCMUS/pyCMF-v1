@@ -12,7 +12,8 @@ reference; \code{help(pycmf.OBMP2)} prints them.
 
 \code{pycmf.__version__} is \code{'1.0.0'}. Exported names:
 \code{OBMP2}, \code{O2BMP2}, \code{ROBMP2}, \code{UOBMP2}, \code{OBDH},
-\code{O2BDH}, \code{ROBDH}, \code{UOBDH}, \code{OBDF}, \code{properties}.
+\code{O2BDH}, \code{ROBDH}, \code{UOBDH}, \code{OODH}, \code{UOODH} (experimental),
+\code{OBDF}, \code{properties}.
 
 \apientry{OBMP2(mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs)}{%
 Returns \code{UOBMP2} for a UHF or ROHF reference and \code{ROBMP2}
@@ -32,6 +33,12 @@ string raises \code{ValueError}.}
 
 \apientry{O2BDH(mf, c_os=None, ax=None, ac=None, frozen=None, mo_coeff=None, mo_occ=None, xc=None, **kwargs)}{%
 OBDH with \code{c_ss=0} and the given \code{c_os} (mandatory).}
+
+\apientry{OODH(mf, ax=None, ac=None, mo_coeff=None, mo_occ=None, xc=None, **kwargs)}{%
+Returns \code{UOODH} (experimental). \code{mf} is an HF or KS object
+(restricted ones are converted) or a \code{Mole}, in which case the
+Kohn--Sham equations of the hybrid part are solved first. Functional
+arguments as for \code{OBDH}.}
 
 \apientry{OBDF(mp, ncas, nelecas, cas_list=None)}{%
 Active-space Hamiltonian from a converged OBMP2 or O2BMP2 object. Methods:
@@ -79,6 +86,38 @@ Dictionary name $\to$ \code{(ax, ac, xc_x, xc_c)} with the keys
 \code{double_hybrid} normalises a name (case, hyphens, underscores) and returns
 the tuple or \code{None}.}
 
+\apientry{class oodh.UOODH(UOBMP2)}{%
+Orbital-optimized double hybrid. Results \code{e_tot}, \code{e_ref},
+\code{e_pt2}, \code{e_dh}; methods \code{build(mo_energy, mo_coeff, nocc)},
+\code{ks_terms(mo_coeff, nocc)}, \code{make_rdm1(ao_repr=True, correlated=False)}
+(relaxed density with \code{correlated=True}) and those of \code{UOBDH}.
+\code{oodh.mp2_lagrangian(ints, mo_energy, nocc, c_os=1., c_ss=1.)} returns
+the two spin components of $E_2$, $\gamma$ and the integral part of the
+gradient.}
+
+\apientry{excited.mom_excitation(mf_gs, hole, particle, spin=0, conv_tol=None, max_cycle=None)}{%
+MOM-UHF determinant with one electron moved from \code{hole} to
+\code{particle} in spin \code{spin}; \code{mf_gs} is not modified.}
+
+\apientry{excited.select_channels(mf_gs, nchannels=None)}{%
+List of \code{(hole, particle, gap)} sorted by the spin-averaged HF gap.}
+
+\apientry{noci.make_basis(mf_gs, channels, method=None, spins=(0, 1), skip_unconverged=True, **kwargs)}{%
+Ground state and state-specific excited determinants; returns
+\code{(labels, states)}. Dropped states are listed in \code{make_basis.failed}.}
+
+\apientry{class noci.NOCI(states, labels=None, hamiltonian=None, mol=None)}{%
+Methods \code{build()} $\to$ \code{(S, H_bare, dipole, S2)},
+\code{get_hamiltonian(model=None)}, \code{kernel(model=None)} $\to$ energies,
+\code{reference_weight()}, \code{channel_weights()}, \code{analyze()}.
+Results \code{e}, \code{ci}, \code{e_exc}, \code{dipole}, \code{f},
+\code{spin_square}, \code{nlindep}.}
+
+\apientry{class noci.Determinant(occ_coeff, e_tot, label='', fock_ao=None, converged=True)}{%
+One determinant of the basis; \code{Determinant.from_state(state, label='')}.
+Module functions \code{noci.solve(H, S, lindep=1e-7)} and
+\code{noci.effective_pair(left, right, s1e)}.}
+
 \apientry{class roobmp2.ROOBMP2(UOBMP2)}{%
 \code{ROOBMP2(mf, frozen=None, mo_coeff=None, mo_occ=None)}; ROHF reference,
 experimental.}
@@ -89,6 +128,15 @@ experimental.}
 \apientry{rdm.dip_moment(mp, correlated=False, unit='Debye', verbose=None)}{Dipole moment.}
 \apientry{spin.spin_square(mp, correlated=False)}{$\langle S^2\rangle$ and $2S+1$ (unrestricted).}
 \apientry{hfcc.isotropic(mp, atoms=None, correlated=False)}{Isotropic hyperfine coupling constants in MHz.}
+\apientry{transition.transition_dipole(gs, es, singlet=False, e_gs=None, e_es=None, origin=None)}{%
+Transition dipole between two determinants (experimental). Returns a
+\code{TransitionResult} with \code{e_exc}, \code{dipole}, \code{dipole_det},
+\code{f}, \code{overlap}, \code{spin_square}.}
+\apientry{transition.transition_density(left, right, s1e=None)}{%
+Overlap $s$ and the spin transition densities (cofactor form).}
+\apientry{transition.orthogonalize(dm_l, dm_r, dm_lr, s)}{%
+Transition density of the L\"owdin-orthogonalized pair.}
+\apientry{transition.occupied_orbitals(state), transition.oscillator_strength(e_exc, dipole)}{Helpers.}
 
 \section{Embedding: \texttt{pycmf.embed} (experimental)}
 

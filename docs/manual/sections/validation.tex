@@ -22,6 +22,9 @@ OBDF & FCI and OBMP2 limits; 0.2 energies & FCIDUMP for restricted references on
 OBDH, O2BDH & OBMP2 and hybrid-DFT limits; 0.2 energies & published parameters, not re-optimised; no benchmark \\
 RO-OBMP2 (exp.) & 0.2 energies to $10^{-10}$ & no formal derivation, no DIIS, no benchmark \\
 Embedding (exp.) & 0.2 energies; whole system and DFT-in-DFT limits & unrestricted only; no benchmark \\
+OO-DH (exp.) & orbital gradient = finite differences ($10^{-8}$); ORCA 4.1 OO-RI-MP2 ($6\times10^{-8}$) and OO-RI-B2PLYP (H$_2$O, NH$_2$; lowering to $10^{-8}$); hybrid-DFT limit; relaxed dipole = finite field & unrestricted only; four-index blocks in memory; no nuclear gradients \\
+Transition dipoles (exp.) & full-CI expansion of the two determinants ($10^{-9}$); unrelaxed single excitation; OB-O2B-simple scripts ($10^{-7}$) & determinant-level moment; $\sqrt2$ singlet approximation \\
+NOCI (exp.) & $S$, $H$, $\mu$, $S^2$ against full CI ($10^{-9}$), also for a singular overlap; OB-O2B-simple scripts ($10^{-13}$ for the matrices) & effective Hamiltonians are model choices (issue 8) \\
 KOBMP2, KO2BMP2 (exp.) & 0.2 code cycle by cycle; KMP2 at the first cycle; molecular code at $\Gamma$ & no published benchmark yet \\
 KUOBMP2 (exp.) & -- & known inconsistency (issue 1) \\
 KOBDF (exp.) & four-index KROBDF code; molecular OBDF at $\Gamma$; complete and empty active space; sum rule & closed shell; no Wannier90, band or DOS tools \\
@@ -59,6 +62,9 @@ Total energies of version 0.2 for all stable methods & all & version 0.2 \\
 $\langle S^2\rangle$ and hyperfine couplings of OH & \code{test_properties.py} & version 0.2 \\
 RO-OBMP2 and embedding; embedding limits & \code{test_experimental.py} & 0.2, \code{pyscf.dft} \\
 Named double hybrids equal their four parameters & \code{test_obdh.py} & internal \\
+OO-DH: orbital gradient = finite differences; OO-MP2 and OO-B2PLYP against ORCA; $a_c=0$ is hybrid DFT; relaxed dipole = finite field & \code{test_oodh.py} & ORCA 4.1, internal \\
+Transition dipole: L\"owdin pair in the full CI space; $\langle 0|\mu|i\to a\rangle=-\langle i|r|a\rangle$; OB-O2B-simple scripts & \code{test_transition.py} & \code{pyscf.fci}, scripts \\
+NOCI matrices against full CI (exact and direct integrals); diagonals; linear dependency; OB-O2B-simple scripts & \code{test_noci.py} & \code{pyscf.fci}, scripts \\
 KOBDF: KROBDF code, $\Gamma$ point, limits, sum rule, supercell solvers & \code{test_kobdf.py} & KROBDF, \code{pyscf.fci}, \code{pyscf.cc} \\
 KOBMP2: 0.2 code cycle by cycle, KMP2, $\Gamma$ point, symmetry, $k$-dependent occupations, disk storage, MPI & \code{test_kobmp2.py} & 0.2, \code{pyscf.pbc.mp} \\
 \end{longtable}
@@ -138,6 +144,9 @@ Script & Shows \\
 \code{experimental/kobmp2.py} & KOBMP2 and KO2BMP2 for diamond, with and without symmetry \\
 \code{experimental/kobmp2_mpi.py} & KOBMP2 with MPI \\
 \code{experimental/kobdf.py} & $k$-point downfolding, quasiparticles and supercell solvers \\
+\code{experimental/oodh.py} & OO-DH for several double hybrids, OO-MP2, relaxed dipole \\
+\code{experimental/transition_dipole.py} & transition dipole and oscillator strength, OBMP2 and O2BMP2 \\
+\code{experimental/noci.py} & NOCI of OBMP2 determinants with the three Hamiltonians \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -167,9 +176,20 @@ Script & Shows \\
         in the constant and the shift in \code{get_fock}.
   \item \textbf{Degenerate open shells with OBDH} converge only to
         $\|\bar f_{ia}\|\sim10^{-6}$ (Section~\ref{sec:obdh}).
-  \item \textbf{The energy is not variational}, so its error is of first
-        order in $\bar f_{ia}$. Use a tight \code{conv_tol_grad} when energy
-        differences below $10^{-6}$~Hartree matter.
+  \item \textbf{The energy is not variational} (all methods except OO-DH),
+        so its error is of first order in $\bar f_{ia}$. Use a tight
+        \code{conv_tol_grad} when energy differences below $10^{-6}$~Hartree
+        matter.
+  \item \textbf{NOCI with \code{'state_specific_fock'} does not couple the
+        $\alpha$ and $\beta$ branches of a channel.} They differ by two spin
+        orbitals and the averaged Fock operator is a one-body operator. The
+        pairs stay nearly degenerate, singlet and triplet are not separated,
+        and $\mu$, $f$ and $\langle S^2\rangle$ of a pair depend on an
+        arbitrary rotation (water/cc-pVDZ, 4$\to$5: two roots at 8.0759~eV,
+        $\langle S^2\rangle\approx1$). \code{'bare'} and
+        \code{'overlap_symmetric'} give the triplet at 6.72/7.73~eV and the
+        singlet at 7.42/8.42~eV. The original OB-O2B-simple scripts show the
+        same degeneracy.
 \end{enumerate}
 
 \section{Limitations}

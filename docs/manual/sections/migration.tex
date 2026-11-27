@@ -32,6 +32,9 @@ Version 0.2 & Version 1.0 \\
 \code{DFTOBMP2}, \code{OBDH_CL} with \code{alphaa=(ax, ac)} & \code{pycmf.OBDH(mf, ax=..., ac=...)} or \code{xc='B2PLYP'} \\
 \code{OBDH_CL}, \code{OBMP2_CL} with \code{use_embed=True} & \code{pycmf.embed.EmbeddedOBDH}, \code{EmbeddedOBMP2} \\
 \code{make_fc(dm)} & \code{mp.hfcc(correlated=False)} \\
+OB-O2B-simple: \code{calc_ob_o2b_transition.py} & \code{transition.transition_dipole(gs, es, singlet=True)} \\
+OB-O2B-simple: \code{calc_noci_ob_o2b.py}, \code{run_mom_hf}, \code{select_channels} & \code{noci.make_basis}, \code{noci.NOCI}, \code{excited.mom_excitation}, \code{excited.select_channels} \\
+\code{oo_dh.py}: \code{UOODH(mf, xc).kernel()}, \code{dh_energy} & \code{pycmf.OODH(mol, xc=...).run()}; \code{e_dh} is the non-optimized double hybrid \\
 \code{make_rdm1(use_t2=...)} & \code{mp.make_rdm1(correlated=...)} \\
 \code{ROOBMP2} (\code{OBMP/ro_obmp2.py}) & \code{pycmf.mol.roobmp2.ROOBMP2} \\
 \code{KOBMP2} ($k$-point, restricted) & \code{pycmf.pbc.KOBMP2}; old names still work \\

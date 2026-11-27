@@ -24,7 +24,8 @@ with the Kohn-Sham Fock matrix of the same orbitals, in semicanonical form
 (the occupied-occupied and virtual-virtual blocks of the Fock matrix are
 diagonalized; the occupied-virtual block, i.e. the singles, is left out).
 This is the Lagrangian of OO-MP2 with a Kohn-Sham reference:
-U. Bozkaya, J. Chem. Phys. 135, 224103 (2011); R. Peverati and
+U. Bozkaya, J. M. Turney, Y. Yamaguchi, H. F. Schaefer and C. D. Sherrill,
+J. Chem. Phys. 135, 104103 (2011) [OO-MP2]; R. Peverati and
 M. Head-Gordon, J. Chem. Phys. 139, 024110 (2013) [OO-DH];
 F. Neese et al., J. Chem. Theory Comput. 5, 3060 (2009) [OO-RI-B2PLYP].
 

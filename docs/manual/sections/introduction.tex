@@ -59,6 +59,9 @@ OBDF & one-body downfolding to an active-space Hamiltonian & \code{pycmf.OBDF} &
 excited states & any of the first four with \code{occupation='mom'} or \code{'imom'} & keyword & stable \\
 RO-OBMP2 & restricted open-shell OBMP2 & \code{pycmf.mol.roobmp2.ROOBMP2} & experimental \\
 embedding & OBMP2- and OBDH-in-DFT projection embedding, concentric localization & \code{pycmf.embed} & experimental \\
+OO-DH & orbital-optimized double hybrid: the double-hybrid energy minimized over the orbitals (OO-MP2 as a limit) & \code{pycmf.OODH} & experimental \\
+transition dipoles & transition dipole moment and oscillator strength between state-specific determinants & \code{pycmf.properties.transition} & experimental \\
+NOCI & non-orthogonal CI of state-specific OBMP2/O2BMP2 determinants & \code{pycmf.mol.noci} & experimental \\
 KOBMP2, KO2BMP2 & periodic systems, closed shell: density fitting, $k$-point symmetry, MPI & \code{pycmf.pbc} & experimental \\
 KOBDF & downfolding to active bands with $k$-points & \code{pycmf.pbc.KOBDF} & experimental \\
 KUOBMP2 & periodic systems, unrestricted (code of version 0.2) & \code{pycmf.pbc.KUOBMP2} & experimental \\

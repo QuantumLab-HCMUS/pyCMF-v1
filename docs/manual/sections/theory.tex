@@ -188,6 +188,55 @@ PBE0-2    & $2^{-1/3}$ & $1/2$ & PBE & PBE & Chai and Mao (2012) \\
 OBDH and O2BDH have not yet been described in a publication; this manual and
 the docstring of \code{pycmf.mol.obdh} are their definition.
 
+\section{Orbital-optimized double hybrids (OO-DH)}
+\label{sec:theory-oodh}
+
+OO-DH minimizes the double-hybrid energy itself with respect to the orbitals
+(Peverati and Head-Gordon; OO-RI-B2PLYP of Neese \emph{et al.}):
+\begin{equation}
+  E[C] = E^{\mathrm{KS}}\big[a_x\,\mathrm{HF} + (1-a_x)\,X,\ (1-a_c)\,C;\ D\big]
+         + a_c\,E_2[C],
+\end{equation}
+where $E_2$ is the MP2 energy built with the Kohn--Sham Fock matrix $f$ of the
+same orbitals in semicanonical form (the occupied--occupied and
+virtual--virtual blocks of $f$ are diagonalized, the singles are left out).
+This is the OO-MP2 Lagrangian of Bozkaya \emph{et al.} with a Kohn--Sham
+reference. In spin orbitals the Hylleraas functional is
+\begin{equation}
+  E_2 = \tfrac12\sum_{ijab} t_{ij}^{ab}\langle ij\|ab\rangle
+        + \sum_{pq} f_{pq}\gamma_{pq},\qquad
+  \gamma_{ij} = -\tfrac12\sum_{kab}t_{ik}^{ab}t_{jk}^{ab},\quad
+  \gamma_{ab} = \tfrac12\sum_{ijc}t_{ij}^{ac}t_{ij}^{bc},
+\end{equation}
+and it is stationary in $t$. For the rotation
+$\phi_i\to\phi_i+x_{ai}\phi_a$ the exact orbital gradient is therefore
+\begin{equation}
+  \frac{\partial E}{\partial x_{ai}} = 2f_{ai} + a_c\Big[
+    \sum_{jbc}t_{ij}^{bc}\langle aj\|bc\rangle
+  - \sum_{jkb}t_{jk}^{ab}\langle jk\|ib\rangle
+  + 2\,(f\gamma-\gamma f)_{ai} + 2\,R[\gamma]_{ai}\Big],
+\end{equation}
+with $R[\gamma]$ the response of the Kohn--Sham Fock matrix to the density
+$\gamma$ (Coulomb, scaled exact exchange and the exchange--correlation
+kernel). The last term is what makes the gradient exact for a functional of
+the density. The self-consistent driver diagonalizes
+\begin{equation}
+  \fbar = f + a_c v,\qquad
+  v_{ai} = \frac{1}{2a_c}\Big(\frac{\partial E}{\partial x_{ai}} - 2f_{ai}\Big),
+  \qquad v_{ij}=v_{ab}=0,
+\end{equation}
+so that the converged $\bar f_{ai}$ is half the orbital gradient. Because the
+energy is stationary in the orbitals, $D + a_c\gamma$ is the relaxed density:
+its expectation value of a one-electron operator is the derivative of the
+energy (no $Z$-vector equations).
+
+OO-DH differs from OBDH (Section~\ref{sec:theory-obdh}): OBDH adds the OBMP2
+correlation potential to the Kohn--Sham Fock matrix and its energy is not
+variational; OO-DH uses the exact gradient of the double-hybrid energy.
+With $a_x=a_c=1$ and no semilocal parts it is OO-MP2; with $a_c=0$ it is the
+hybrid functional. $c_{\mathrm{OS}}$ and $c_{\mathrm{SS}}$ scale the two spin
+components of $E_2$.
+
 \section{State-specific excited states}
 \label{sec:theory-mom}
 
@@ -199,6 +248,52 @@ Besley and Gill) or of the initial determinant (\code{'imom'}, Barca, Gilbert
 and Gill) are occupied. Excitation energies are differences of total
 energies. An open-shell singlet obtained this way is a spin-mixed determinant
 ($\langle S^2\rangle\approx 1$).
+
+\section{Transition moments and NOCI}
+\label{sec:theory-noci}
+
+The ground and excited determinants of a state-specific calculation have
+different, non-orthogonal orbitals. For each spin the generalized
+Slater--Condon rules are used in the corresponding-orbital form,
+\begin{equation}
+  X = C_L^{\mathsf T} S\, C_R = U\,\mathrm{diag}(\sigma)\,V^{\mathsf T},\qquad
+  s = \det X,\qquad
+  P = \pm\sum_i \Big[\prod_{k\neq i}\sigma_k\Big]\,|r_i\rangle\langle l_i|,
+\end{equation}
+with $l=C_LU$ and $r=C_RV$. The cofactor weights avoid a division by the
+overlap, so the expressions also hold when $X$ is singular. The two-electron
+terms use products of the same cofactors (Lemke, Kussmann and Ochsenfeld).
+
+\paragraph{Transition dipole.} The two determinants are first made orthogonal
+by the symmetric (L\"owdin) transformation (Bourne Worster, Feighan and
+Manby), then $\boldsymbol\mu$ is taken between them and
+$f = \tfrac23\,\Delta E\,|\boldsymbol\mu|^2$. This is a determinant-level
+moment: the correlation enters through the orbitals only. For a closed-shell
+molecule the excited determinant is spin mixed; \code{singlet=True}
+multiplies $\boldsymbol\mu$ by $\sqrt2$, assuming the $\alpha$ and $\beta$
+branches are equivalent and orthogonal.
+
+\paragraph{NOCI.} The ground-state determinant and state-specific excited
+determinants (one per excitation channel and spin) are combined by solving
+$HC = SCE$ after canonical orthogonalization of $S$. Three Hamiltonians are
+available:
+\begin{itemize}
+  \item \code{'bare'}: the physical Hamiltonian; the diagonal is the HF energy
+        of each OBMP2 determinant.
+  \item \code{'overlap_symmetric'}:
+        $H_{IJ} = H^{\mathrm{bare}}_{IJ} + \tfrac12(\Delta_I+\Delta_J)S_{IJ}$
+        with $\Delta_I = E_I - H^{\mathrm{bare}}_{II}$, so the diagonal is the
+        OBMP2 energy.
+  \item \code{'state_specific_fock'} (default): each determinant carries its
+        correlated Fock operator $F_I$ and a constant $c_I$ with
+        $c_I+\sum_{\mathrm{occ}}F_I=E_I$;
+        $H_{IJ}=\tfrac12(c_I+c_J)S_{IJ}+\sum_\sigma\mathrm{tr}
+        [\tfrac12(F_{I\sigma}+F_{J\sigma})D_{IJ\sigma}]$.
+\end{itemize}
+The last two are model choices; only their diagonal is fixed by the theory.
+The averaged Fock operator is a one-body operator, so it does not couple the
+$\alpha$ and $\beta$ determinants of one channel, which differ by two spin
+orbitals (known issue~8).
 
 \section{One-body downfolding (OBDF)}
 \label{sec:theory-obdf}

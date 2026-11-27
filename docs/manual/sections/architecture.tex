@@ -12,9 +12,10 @@ src/pycmf/
   core/         self-consistent driver, DIIS, occupation schemes,
                 amplitudes, MPI helpers, experimental marker
   mol/          molecules: integrals, correlation potential, OBMP2,
-                O2BMP2, OBDH, O2BDH, RO-OBMP2
+                O2BMP2, OBDH, O2BDH, OO-DH, RO-OBMP2, NOCI
   downfold/     one-body downfolding, FCIDUMP export
-  properties/   densities, dipole moments, <S^2>, hyperfine couplings
+  properties/   densities, dipole moments, <S^2>, hyperfine couplings,
+                transition dipoles
   embed/        projection embedding, concentric localization (experimental)
   pbc/          k-point OBMP2, O2BMP2, quasiparticles, OBDF (experimental)
 tests/          pytest suite
@@ -45,10 +46,14 @@ Module & Content \\
 \code{mol/obmp2.py} & \code{OBMP2Base}, \code{ROBMP2}, \code{UOBMP2}, factories \code{OBMP2}, \code{O2BMP2} \\
 \code{mol/obdh.py} & \code{ROBDH}, \code{UOBDH}, factories \code{OBDH}, \code{O2BDH}, \code{FUNCTIONALS} \\
 \code{mol/roobmp2.py} & \code{ROOBMP2} (experimental) \\
+\code{mol/oodh.py} & \code{UOODH}, factory \code{OODH} (experimental): its own \code{build} returns the exact orbital gradient as the ov block of $\fbar$ \\
+\code{mol/excited.py} & MOM-UHF excited determinants, channel selection \\
+\code{mol/noci.py} & \code{NOCI}, \code{Determinant}, \code{make_basis} (experimental) \\
 \code{downfold/obdf.py} & \code{OBDF} \\
 \code{properties/rdm.py} & densities and dipole moments \\
 \code{properties/spin.py} & $\langle S^2\rangle$ \\
 \code{properties/hfcc.py} & isotropic hyperfine couplings \\
+\code{properties/transition.py} & generalized Slater--Condon rules, transition dipoles (experimental) \\
 \code{embed/partition.py} & SPADE partition, AO indices of atoms \\
 \code{embed/cl.py} & concentric localization \\
 \code{embed/projection.py} & \code{EmbeddedOBMP2}, \code{EmbeddedOBDH} \\

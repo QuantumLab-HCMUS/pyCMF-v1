@@ -492,3 +492,112 @@ the embedding potential use \code{xc_env}, and the subsystem uses its own
 double hybrid. In version 0.2 \code{xc_env} was also used for the
 Kohn--Sham part of the subsystem; those numbers are reproduced with
 \code{xc=xc_env}.
+
+\section{Experimental: orbital-optimized double hybrids}
+\label{sec:oodh}
+
+\begin{lstlisting}[style=python]
+m = pycmf.OODH(mol, xc='B2PLYP').run()   # Mole: KS of the hybrid part first
+m.e_dh, m.e_tot                          # usual double hybrid, OO-DH
+pycmf.OODH(mf, xc='PBE0-DH')             # any HF/KS object as the start
+pycmf.OODH(mf, xc='HF', ac=1.)           # OO-MP2
+pycmf.OODH(mol, c_os=1.3, c_ss=0.)       # spin-component scaled
+m.density_fit('cc-pvdz-ri')              # DF for the second-order part
+m.make_rdm1(correlated=True)             # relaxed density D + a_c gamma
+\end{lstlisting}
+
+The functional is chosen as for OBDH (Section~\ref{sec:obdh}). Started from a
+\code{Mole}, the Kohn--Sham equations of the hybrid part are solved first, so
+\code{e_dh} is the usual (non-optimized) double hybrid and
+\code{e_tot - e_dh} the lowering by the orbital optimization. Started from a
+mean-field object, \code{e_dh} is the double hybrid on its orbitals. The
+calculation is always unrestricted; \code{occupation='imom'} gives
+state-specific excited states as for the other methods. Further results:
+\code{e_ref} (Kohn--Sham part) and \code{e_pt2} (unscaled $E_2$, so
+\code{e_tot = e_ref + ac * e_pt2}). \code{level_shift} is not defined for
+OO-DH and raises \code{NotImplementedError}; so do the correlated
+$\langle S^2\rangle$ and hyperfine couplings. The four-index blocks of $E_2$
+are held in memory.
+
+From \code{examples/experimental/oodh.py} (water, cc-pVDZ, cc-pVDZ-RI):
+
+\begin{lstlisting}[style=output]
+xc                      E(DH)           E(OO-DH) lowering (mEh)
+B2PLYP         -76.3537696870     -76.3538744405      -0.104754
+PBE0-DH        -76.3339321366     -76.3339546768      -0.022540
+B2GP-PLYP      -76.3373735546     -76.3375362686      -0.162714
+OO-MP2         -76.2307604369     -76.2316569061      -0.896469
+\end{lstlisting}
+
+ORCA 4.1 gives $-76.353769929$ (RI-B2PLYP) and $-76.353874683$
+(OO-RI-B2PLYP), the same lowering of $-0.104754$~mHartree.
+
+\section{Experimental: transition dipole moments}
+\label{sec:transition}
+
+\begin{lstlisting}[style=python]
+from pycmf.mol import excited
+from pycmf.properties import transition
+
+mf = scf.UHF(mol).run()
+mf_es = excited.mom_excitation(mf, hole=4, particle=5, spin=1)  # beta 4 -> 5
+gs = pycmf.OBMP2(mf).run()
+es = pycmf.OBMP2(mf_es, occupation='imom').run()
+res = transition.transition_dipole(gs, es, singlet=True)
+res.e_exc, res.dipole, res.f, res.overlap, res.spin_square
+\end{lstlisting}
+
+\code{mom_excitation} converges a MOM-UHF determinant with one electron moved
+from \code{hole} to \code{particle} (0-based orbital indices) and leaves
+\code{mf} unchanged; \code{select_channels(mf, n)} lists the \code{n}
+excitations with the smallest HF gap. \code{transition_dipole} accepts pyCMF
+objects, \pyscf{} mean-field objects or pairs of occupied orbital matrices;
+\code{dipole_det} is the moment without the singlet factor. From
+\code{examples/experimental/transition_dipole.py} (water, cc-pVDZ,
+$\beta$ 4$\to$5):
+
+\begin{lstlisting}[style=output]
+method            dE (eV)  |mu| (e a0)          f   <S^2> ES
+OBMP2             8.07587     0.334070   0.022081     1.0070
+O2BMP2 (1.2)      7.80454     0.332171   0.021097     1.0066
+\end{lstlisting}
+
+\section{Experimental: NOCI}
+\label{sec:noci}
+
+\begin{lstlisting}[style=python]
+from pycmf.mol import excited, noci
+
+channels = excited.select_channels(mf, 2)       # (hole, particle, gap)
+labels, states = noci.make_basis(mf, channels)  # GS + alpha/beta per channel
+m = noci.NOCI(states, labels)
+m.kernel('bare')                # or 'overlap_symmetric', 'state_specific_fock'
+m.e, m.e_exc, m.dipole, m.f, m.spin_square
+m.channel_weights(); m.reference_weight(); m.analyze()
+\end{lstlisting}
+
+\code{make_basis} optimizes the ground state and one excited determinant per
+channel and spin with \code{method} (default \code{pycmf.OBMP2}; for example
+\code{functools.partial(pycmf.O2BMP2, c_os=1.2)}), with \code{conv_tol=1e-10}
+and \code{conv_tol_grad=1e-7}: the couplings are of first order in the orbital
+residual. States that do not converge are skipped and listed in
+\code{make_basis.failed}. Attributes of \code{NOCI}: \code{hamiltonian}
+(default \code{'state_specific_fock'}), \code{lindep} (default $10^{-7}$,
+eigenvalues of $S$ removed) and \code{direct} (direct $J/K$ builds instead of
+AO integrals in memory). From \code{examples/experimental/noci.py} (water,
+cc-pVDZ, two channels):
+
+\begin{lstlisting}[style=output]
+bare
+ root           E (Eh)    dE (eV)       |mu|          f    <S^2>
+    0     -76.02593706    0.00000   0.000000   0.000000   0.0000
+    1     -75.77885336    6.72349   0.000000   0.000000   2.0000
+    2     -75.75342569    7.41541   0.334070   0.020275   0.0139
+    3     -75.69566015    8.98729   0.000000   0.000000   2.0000
+    4     -75.68141617    9.37489   0.000000   0.000000   0.0128
+\end{lstlisting}
+
+The \code{bare} and \code{overlap_symmetric} models separate the singlet and
+the triplet of a channel; \code{state_specific_fock} does not (known
+issue~8).
+

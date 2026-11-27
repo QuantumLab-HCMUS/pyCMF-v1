@@ -238,6 +238,40 @@ active-space solver. The k-point version is described in
 - Koopmans-type ionization potentials and electron affinities from the
   eigenvalues of $\bar f$.
 
+## 7. Orbital-optimized double hybrids (OO-DH, experimental)
+
+OO-DH minimizes the double-hybrid energy over the orbitals,
+$E[C]=E^{\rm KS}[a_x{\rm HF}+(1-a_x)X,(1-a_c)C;D]+a_cE_2[C]$, with $E_2$ the
+MP2 energy on the semicanonical Kohn–Sham orbitals (OO-MP2 Lagrangian with a
+Kohn–Sham reference [10–12]). With the Hylleraas functional
+$E_2=\tfrac12\sum t_{ij}^{ab}\langle ij\|ab\rangle+\sum_{pq}f_{pq}\gamma_{pq}$,
+stationary in $t$, the exact orbital gradient is
+
+$$
+\frac{\partial E}{\partial x_{ai}} = 2f_{ai} + a_c\Big[\sum_{jbc}t_{ij}^{bc}\langle aj\|bc\rangle
+ - \sum_{jkb}t_{jk}^{ab}\langle jk\|ib\rangle + 2(f\gamma-\gamma f)_{ai} + 2R[\gamma]_{ai}\Big],
+$$
+
+$R[\gamma]$ being the response of the Kohn–Sham Fock matrix (Coulomb, exact
+exchange, XC kernel) to the MP2 density correction $\gamma$. The driver
+diagonalizes $\bar f=f+a_cv$ with $v_{ai}=(\partial E/\partial x_{ai}-2f_{ai})/(2a_c)$
+and $v_{ij}=v_{ab}=0$. The energy is variational, and $D+a_c\gamma$ is the
+relaxed density. Unlike OBDH, the correlation enters through the exact
+gradient of the double-hybrid energy, not through the OBMP2 potential.
+
+## 8. Transition moments and NOCI (experimental)
+
+Two determinants with different orbitals are handled with the generalized
+Slater–Condon rules in corresponding-orbital form: per spin
+$X=C_L^{\sf T}SC_R=U\,{\rm diag}(\sigma)V^{\sf T}$, $s=\det X$, and the
+transition density uses the cofactors $\prod_{k\ne i}\sigma_k$, so it also
+holds for singular $X$ [14]. The transition dipole is taken between the
+Löwdin-orthogonalized pair [13], $f=\tfrac23\Delta E|\mu|^2$. NOCI solves
+$HC=SCE$ in the basis of the ground-state and state-specific excited
+determinants with the bare Hamiltonian or two effective ones whose diagonals
+are the OBMP2 energies (`'overlap_symmetric'`, `'state_specific_fock'`); see
+`pycmf.mol.noci` and known issue 8 in [status.md](status.md).
+
 ## References
 
 1. T. N. Lan and T. Yanai, *J. Chem. Phys.* **138**, 224108 (2013).
@@ -249,3 +283,8 @@ active-space solver. The k-point version is described in
 7. S. Grimme, *J. Chem. Phys.* **124**, 034108 (2006).
 8. A. T. B. Gilbert, N. A. Besley and P. M. W. Gill, *J. Phys. Chem. A* **112**, 13164 (2008).
 9. G. M. J. Barca, A. T. B. Gilbert and P. M. W. Gill, *J. Chem. Theory Comput.* **14**, 1501 (2018).
+10. U. Bozkaya, J. M. Turney, Y. Yamaguchi, H. F. Schaefer and C. D. Sherrill, *J. Chem. Phys.* **135**, 104103 (2011).
+11. F. Neese, T. Schwabe, S. Kossmann, B. Schirmer and S. Grimme, *J. Chem. Theory Comput.* **5**, 3060 (2009).
+12. R. Peverati and M. Head-Gordon, *J. Chem. Phys.* **139**, 024110 (2013).
+13. S. Bourne Worster, O. Feighan and F. R. Manby, *J. Chem. Phys.* **154**, 124106 (2021).
+14. Y. Lemke, J. Kussmann and C. Ochsenfeld, *J. Chem. Theory Comput.* **21**, 10193 (2025).
